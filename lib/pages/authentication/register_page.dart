@@ -9,6 +9,16 @@ import '../../models/city.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/city_provider.dart';
 
+// Extension to capitalize enum names for display
+extension StringExtension on String {
+  String toCapitalizedString() {
+    if (this.isEmpty) {
+      return '';
+    }
+    return '${this[0].toUpperCase()}${this.substring(1)}';
+  }
+}
+
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -25,9 +35,12 @@ class _RegisterPageState extends State<RegisterPage> {
   final _phoneController = TextEditingController();
   final _whatsappController = TextEditingController();
   final _addressController = TextEditingController();
+  final _licenseNumberController = TextEditingController();
+  final _agencyNameController = TextEditingController();
 
   bool _whatsappSameAsPhone = true;
   String? _selectedCity;
+  UserRole _selectedUserRole = UserRole.buyer; // Default to Buyer
 
   @override
   void initState() {
@@ -46,6 +59,8 @@ class _RegisterPageState extends State<RegisterPage> {
     _phoneController.dispose();
     _whatsappController.dispose();
     _addressController.dispose();
+    _licenseNumberController.dispose();
+    _agencyNameController.dispose();
     super.dispose();
   }
 
@@ -114,7 +129,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final newUser = User(
         userId: '',
-        userRole: UserRole.buyer,
+        userRole: _selectedUserRole,
         firstName: _firstNameController.text,
         lastName: _lastNameController.text,
         email: _emailController.text,
@@ -129,7 +144,15 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       try {
-        await authProvider.registerUser(newUser);
+        await authProvider.registerUser(
+          user: newUser,
+          licenseNumber: _selectedUserRole == UserRole.agent
+              ? _licenseNumberController.text
+              : null,
+          agencyName: _selectedUserRole == UserRole.agent
+              ? _agencyNameController.text
+              : null,
+        );
         Navigator.of(context).pushReplacementNamed('/home');
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -192,6 +215,42 @@ class _RegisterPageState extends State<RegisterPage> {
                     : null,
               ),
               const SizedBox(height: 16),
+              // User Role Dropdown
+              DropdownButtonFormField<UserRole>(
+                value: _selectedUserRole,
+                decoration: const InputDecoration(hintText: 'You are?'),
+                items: UserRole.values.map((role) {
+                  return DropdownMenuItem<UserRole>(
+                    value: role,
+                    child: Text(role.name.toCapitalizedString()),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedUserRole = value!;
+                  });
+                },
+                validator: (value) =>
+                value == null ? 'Please select your role' : null,
+              ),
+              const SizedBox(height: 16),
+              // Conditional Agent fields
+              if (_selectedUserRole == UserRole.agent) ...[
+                TextFormField(
+                  controller: _licenseNumberController,
+                  decoration: const InputDecoration(hintText: 'License Number'),
+                  validator: (value) =>
+                  value!.isEmpty ? 'Please enter your license number' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _agencyNameController,
+                  decoration: const InputDecoration(hintText: 'Agency Name'),
+                  validator: (value) =>
+                  value!.isEmpty ? 'Please enter your agency name' : null,
+                ),
+                const SizedBox(height: 16),
+              ],
               TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(hintText: 'Phone Number'),

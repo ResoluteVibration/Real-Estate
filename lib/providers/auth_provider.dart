@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user.dart';
 import '../models/enums.dart';
+import '../models/agent.dart'; // Import the Agent model
 
 class AuthProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -15,20 +16,54 @@ class AuthProvider with ChangeNotifier {
   bool get isLoggingIn => _isLoggingIn;
   bool get isRegistering => _isRegistering;
 
-  // Function to register a new user.
-  Future<void> registerUser(User user) async {
+  // Function to register a new user with optional agent details.
+  Future<void> registerUser({
+    required User user,
+    String? licenseNumber,
+    String? agencyName,
+  }) async {
     _isRegistering = true;
     notifyListeners();
     try {
       // Check if user with this email already exists.
-      final querySnapshot = await _firestore.collection('users').where('email', isEqualTo: user.email).get();
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: user.email)
+          .get();
       if (querySnapshot.docs.isNotEmpty) {
         throw Exception('Email already in use.');
       }
 
-      // Add the new user to Firestore.
-      final docRef = await _firestore.collection('users').add(user.toFirestore());
-      final newUser = user.copyWith(userId: docRef.id);
+      // Use a batch to ensure both user and agent (if applicable) are created atomically.
+      final batch = _firestore.batch();
+      final userDocRef = _firestore.collection('users').doc(); // Create a new document reference
+
+      // Add the new user to Firestore using a batch set operation.
+      // We'll create a new User object with the Firestore-generated ID.
+      final newUser = user.copyWith(
+        userId: userDocRef.id,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      );
+      batch.set(userDocRef, newUser.toFirestore());
+
+      // If the user is an agent, create and save the agent model as well.
+      if (newUser.userRole == UserRole.agent &&
+          licenseNumber != null &&
+          agencyName != null) {
+        final agentDocRef = _firestore.collection('agents').doc(newUser.userId);
+        final newAgent = Agent(
+          agentId: newUser.userId,
+          userId: newUser.userId,
+          licenseNumber: licenseNumber,
+          agencyName: agencyName,
+        );
+        batch.set(agentDocRef, newAgent.toFirestore());
+      }
+
+      // Commit the batch to save all changes.
+      await batch.commit();
+
       _currentUser = newUser;
     } catch (e) {
       debugPrint('Registration Error: $e');
@@ -45,18 +80,20 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
     try {
       // Find the user with the given email.
-      final querySnapshot = await _firestore.collection('users').where('email', isEqualTo: email).limit(1).get();
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
 
       if (querySnapshot.docs.isEmpty) {
         throw Exception('User not found.');
       }
 
       final doc = querySnapshot.docs.first;
-      final userData = doc.data();
       final user = User.fromFirestore(doc);
 
       // Check if the password matches.
-      // This is a simple text-based password check as requested.
       if (user.password == password) {
         _currentUser = user;
       } else {
