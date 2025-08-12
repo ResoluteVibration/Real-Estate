@@ -9,12 +9,16 @@ import '../models/agent.dart'; // Import the Agent model
 class AuthProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   User? _currentUser;
+  Agent? _currentAgent;
   bool _isLoggingIn = false;
   bool _isRegistering = false;
+  bool _isLoading = false; // Added for fetching/updating profile
 
   User? get currentUser => _currentUser;
+  Agent? get currentAgent => _currentAgent;
   bool get isLoggingIn => _isLoggingIn;
   bool get isRegistering => _isRegistering;
+  bool get isLoading => _isLoading;
 
   // Function to register a new user with optional agent details.
   Future<void> registerUser({
@@ -25,7 +29,6 @@ class AuthProvider with ChangeNotifier {
     _isRegistering = true;
     notifyListeners();
     try {
-      // Check if user with this email already exists.
       final querySnapshot = await _firestore
           .collection('users')
           .where('email', isEqualTo: user.email)
@@ -34,12 +37,8 @@ class AuthProvider with ChangeNotifier {
         throw Exception('Email already in use.');
       }
 
-      // Use a batch to ensure both user and agent (if applicable) are created atomically.
       final batch = _firestore.batch();
-      final userDocRef = _firestore.collection('users').doc(); // Create a new document reference
-
-      // Add the new user to Firestore using a batch set operation.
-      // We'll create a new User object with the Firestore-generated ID.
+      final userDocRef = _firestore.collection('users').doc();
       final newUser = user.copyWith(
         userId: userDocRef.id,
         createdAt: Timestamp.now(),
@@ -47,7 +46,6 @@ class AuthProvider with ChangeNotifier {
       );
       batch.set(userDocRef, newUser.toFirestore());
 
-      // If the user is an agent, create and save the agent model as well.
       if (newUser.userRole == UserRole.agent &&
           licenseNumber != null &&
           agencyName != null) {
@@ -61,10 +59,19 @@ class AuthProvider with ChangeNotifier {
         batch.set(agentDocRef, newAgent.toFirestore());
       }
 
-      // Commit the batch to save all changes.
       await batch.commit();
 
       _currentUser = newUser;
+      if (newUser.userRole == UserRole.agent) {
+        _currentAgent = Agent(
+          agentId: newUser.userId,
+          userId: newUser.userId,
+          licenseNumber: licenseNumber!,
+          agencyName: agencyName!,
+        );
+      } else {
+        _currentAgent = null;
+      }
     } catch (e) {
       debugPrint('Registration Error: $e');
       rethrow;
@@ -79,7 +86,6 @@ class AuthProvider with ChangeNotifier {
     _isLoggingIn = true;
     notifyListeners();
     try {
-      // Find the user with the given email.
       final querySnapshot = await _firestore
           .collection('users')
           .where('email', isEqualTo: email)
@@ -93,9 +99,14 @@ class AuthProvider with ChangeNotifier {
       final doc = querySnapshot.docs.first;
       final user = User.fromFirestore(doc);
 
-      // Check if the password matches.
       if (user.password == password) {
         _currentUser = user;
+        if (user.userRole == UserRole.agent) {
+          final agentDoc = await _firestore.collection('agents').doc(user.userId).get();
+          if (agentDoc.exists) {
+            _currentAgent = Agent.fromFirestore(agentDoc);
+          }
+        }
       } else {
         throw Exception('Incorrect password.');
       }
@@ -104,6 +115,155 @@ class AuthProvider with ChangeNotifier {
       rethrow;
     } finally {
       _isLoggingIn = false;
+      notifyListeners();
+    }
+  }
+
+  // Function to fetch the full user profile including agent details.
+  Future<void> fetchUserProfile() async {
+    if (_currentUser == null) return;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final userDoc = await _firestore.collection('users').doc(_currentUser!.userId).get();
+      if (userDoc.exists) {
+        _currentUser = User.fromFirestore(userDoc);
+        if (_currentUser!.userRole == UserRole.agent) {
+          final agentDoc = await _firestore.collection('agents').doc(_currentUser!.userId).get();
+          if (agentDoc.exists) {
+            _currentAgent = Agent.fromFirestore(agentDoc);
+          } else {
+            _currentAgent = null;
+          }
+        } else {
+          _currentAgent = null;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching user profile: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Function to update the user profile.
+  Future<void> updateUserProfile({
+    required User updatedUser,
+    String? licenseNumber,
+    String? agencyName,
+  }) async {
+    if (_currentUser == null) return;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final batch = _firestore.batch();
+      final userDocRef = _firestore.collection('users').doc(updatedUser.userId);
+
+      // Update the user document
+      batch.update(userDocRef, updatedUser.toFirestore());
+
+      // Handle agent-specific updates
+      if (updatedUser.userRole == UserRole.agent) {
+        final agentDocRef = _firestore.collection('agents').doc(updatedUser.userId);
+        if (_currentAgent != null) {
+          // Update existing agent profile
+          final updatedAgent = _currentAgent!.copyWith(
+            licenseNumber: licenseNumber,
+            agencyName: agencyName,
+          );
+          batch.update(agentDocRef, updatedAgent.toFirestore());
+        } else {
+          // Create new agent profile
+          final newAgent = Agent(
+            agentId: updatedUser.userId,
+            userId: updatedUser.userId,
+            licenseNumber: licenseNumber!,
+            agencyName: agencyName!,
+          );
+          batch.set(agentDocRef, newAgent.toFirestore());
+        }
+      } else if (_currentAgent != null) {
+        // If user is no longer an agent, delete the agent document
+        final agentDocRef = _firestore.collection('agents').doc(updatedUser.userId);
+        batch.delete(agentDocRef);
+      }
+
+      await batch.commit();
+
+      // Update local state after successful update
+      _currentUser = updatedUser;
+      if (updatedUser.userRole == UserRole.agent) {
+        _currentAgent = Agent(
+          agentId: updatedUser.userId,
+          userId: updatedUser.userId,
+          licenseNumber: licenseNumber!,
+          agencyName: agencyName!,
+        );
+      } else {
+        _currentAgent = null;
+      }
+
+    } catch (e) {
+      debugPrint('Error updating user profile: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Updates the current user's role and, for agents, their professional details.
+  Future<void> updateUserRole(String role, {String? licenseNumber, String? agencyName}) async {
+    if (_currentUser == null) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final userRef = _firestore.collection('users').doc(_currentUser!.userId);
+      final roleEnum = UserRole.values.firstWhere(
+            (e) => e.name.toLowerCase() == role.toLowerCase(),
+        orElse: () => UserRole.buyer,
+      );
+
+      // Update the user's role in Firestore without updated_at
+      await userRef.update({
+        'user_role': roleEnum.name,
+      });
+
+      // Update the local user object with the new role
+      _currentUser = _currentUser!.copyWith(userRole: roleEnum);
+
+      // Handle agent-specific updates if the new role is 'Agent'
+      if (roleEnum == UserRole.agent) {
+        final agentRef = _firestore.collection('agents').doc(_currentUser!.userId);
+        final newAgent = Agent(
+          agentId: _currentUser!.userId,
+          userId: _currentUser!.userId,
+          licenseNumber: licenseNumber!,
+          agencyName: agencyName!,
+        );
+
+        // Use a transaction to ensure atomicity
+        await _firestore.runTransaction((transaction) async {
+          transaction.set(agentRef, newAgent.toFirestore(), SetOptions(merge: true));
+        });
+
+        // Update local state with new agent info
+        _currentAgent = newAgent;
+      } else if (_currentAgent != null) {
+        // If the role is no longer 'Agent', delete the agent data
+        final agentRef = _firestore.collection('agents').doc(_currentUser!.userId);
+        await agentRef.delete();
+        _currentAgent = null;
+      }
+
+    } catch (e) {
+      debugPrint('Error updating user role: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
@@ -124,12 +284,14 @@ class AuthProvider with ChangeNotifier {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     );
+    _currentAgent = null;
     notifyListeners();
   }
 
   // Function to log out the current user.
   Future<void> logout() async {
     _currentUser = null;
+    _currentAgent = null;
     notifyListeners();
   }
 }

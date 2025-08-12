@@ -7,7 +7,10 @@ import 'package:real_estate/utils/database_seeder.dart';
 import 'package:real_estate/widgets/property_card_view.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:real_estate/theme/custom_colors.dart';
-import 'package:real_estate/models/city.dart'; // Import the City model
+import 'package:real_estate/models/city.dart';
+import 'package:real_estate/pages/home/profile/profile_page.dart';
+import 'package:real_estate/models/enums.dart';
+import 'package:real_estate/widgets/handlePostPropertyAction.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,11 +31,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   double _minPrice = 0;
   double _maxPrice = 5000000;
   double _currentPrice = 5000000;
-  String? _selectedType; // "Residential", "Commercial"
-  String? _selectedCityId; // New filter for City ID
+  PropertyType? _selectedType; // Changed to use PropertyType enum
+  String? _selectedCityId;
   final Set<String> _selectedAmenities = {};
   List<String> _allAmenities = [];
-  List<City> _allCities = []; // New list for City objects
+  List<City> _allCities = [];
 
   Future<void> _fetchFilterData() async {
     try {
@@ -71,6 +74,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     super.dispose();
   }
 
+
   void _selectDrawerItem(String item) {
     Navigator.pop(context);
     if (mounted) {
@@ -80,11 +84,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
 
     switch (item) {
-      case 'Post Property':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const PostPropertyPage()),
-        );
+      case 'Post New Property':
+        handlePostPropertyAction(context);
         break;
       case 'Populate Amenities':
         DatabaseSeeder.seedDatabase(context);
@@ -163,10 +164,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       // Property Type
                       Wrap(
                         spacing: 8,
-                        children: ['Residential', 'Commercial'].map((type) {
+                        children: PropertyType.values.map((type) { // Changed to use PropertyType enum
                           final selected = _selectedType == type;
                           return ChoiceChip(
-                            label: Text(type),
+                            label: Text(type.toCapitalizedString()),
                             selected: selected,
                             onSelected: (val) {
                               setModalState(() {
@@ -230,11 +231,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.check),
-                        label: const Text('Apply Filters'),
+                        label: const Text('Find with Filters'),
                         onPressed: () {
                           Navigator.of(context).pop();
                           if (mounted) {
-                            setState(() {}); // refreshes PropertyCardView
+                            setState(() {});
                           }
                         },
                       ),
@@ -270,7 +271,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         ),
         leading: IconButton(
           icon: Icon(Icons.account_circle, color: Theme.of(context).colorScheme.onSecondary),
-          onPressed: () {},
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfilePage()),
+            );
+          },
         ),
         actions: [
           IconButton(
@@ -328,22 +334,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               ),
               buildDrawerItem(icon: Icons.home, title: 'Home Page'),
               buildDrawerItem(icon: Icons.search, title: 'Search Properties'),
-              const Divider(),
-              buildDrawerItem(icon: Icons.remove_red_eye_outlined, title: 'Viewed Properties'),
-              buildDrawerItem(icon: Icons.star_border, title: 'Shortlisted Properties'),
-              buildDrawerItem(icon: Icons.contact_phone_outlined, title: 'Contacted Properties'),
-              const Divider(),
-              buildDrawerItem(icon: Icons.post_add, title: 'Post Property'),
-              buildDrawerItem(icon: Icons.visibility_outlined, title: 'View Responses'),
-              buildDrawerItem(icon: Icons.edit_note, title: 'Manage/Edit your Listings'),
-              const Divider(),
-              buildDrawerItem(icon: Icons.calculate_outlined, title: 'Tools and Calculators'),
+              if (!isGuest) ...[
+                const Divider(),
+                buildDrawerItem(icon: Icons.star_border, title: 'Shortlisted/Favourite Properties'),
+                buildDrawerItem(icon: Icons.contact_phone_outlined, title: 'Contacted Properties'),
+                const Divider(),
+                buildDrawerItem(icon: Icons.post_add, title: 'Post New Property'),
+                if (user?.userRole == UserRole.agent || user?.userRole == UserRole.owner) ...[
+                  buildDrawerItem(icon: Icons.visibility_outlined, title: 'View Responses'),
+                  buildDrawerItem(icon: Icons.edit_note, title: 'My Listings'),
+                ]
+              ],
               const Divider(),
               buildDrawerItem(icon: Icons.apartment, title: 'Residential Properties'),
               buildDrawerItem(icon: Icons.business, title: 'Commercial Properties'),
-              const Divider(),
-              buildDrawerItem(icon: Icons.cloud_upload_outlined, title: 'Populate Amenities'),
-              buildDrawerItem(icon: Icons.logout, title: 'Log Out'),
+              if (!isGuest) ...[
+                const Divider(),
+                buildDrawerItem(icon: Icons.cloud_upload_outlined, title: 'Populate Amenities'),
+                buildDrawerItem(icon: Icons.logout, title: 'Log Out'),
+              ],
+
             ],
           ),
         ),
@@ -364,7 +374,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   hintText: 'Search properties...',
                   prefixIcon: Icon(Icons.search,
                       color: Theme.of(context).colorScheme.onSurface),
-                  // The filter icon has been removed from here.
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.filter_list,
+                        color: Theme.of(context).colorScheme.onSurface),
+                    onPressed: _openFilterDrawer,
+                  ),
                   border: InputBorder.none,
                   contentPadding:
                   const EdgeInsets.symmetric(vertical: 14, horizontal: 20),

@@ -1,3 +1,4 @@
+// lib/theme/custom_colors.dart
 import 'package:flutter/material.dart';
 
 class CustomColors {
