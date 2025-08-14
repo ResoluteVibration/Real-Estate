@@ -6,6 +6,8 @@ import 'package:real_estate/pages/home/drawer/post_property_page.dart';
 import 'package:real_estate/pages/home/profile/edit_profile_page.dart'; // Import the new page
 import 'package:real_estate/widgets/handlePostPropertyAction.dart';
 
+import '../drawer/listings_page.dart';
+
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -194,8 +196,10 @@ class ProfilePage extends StatelessWidget {
             icon: Icons.apartment,
             title: 'Manage/Edit Your Listings',
             onTap: () {
-              // TODO: Implement navigation to My Listings page
-              _showInfoDialog(context, 'My Listings', 'This feature is coming soon!');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ListingsPage()),
+              );
             },
           ),
           _buildProfileOption(

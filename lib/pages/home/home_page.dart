@@ -11,6 +11,10 @@ import 'package:real_estate/models/city.dart';
 import 'package:real_estate/pages/home/profile/profile_page.dart';
 import 'package:real_estate/models/enums.dart';
 import 'package:real_estate/widgets/handlePostPropertyAction.dart';
+import 'package:real_estate/models/property_with_images.dart';
+import 'package:real_estate/models/property.dart';
+import 'drawer/listings_page.dart';
+import 'drawer/favourite_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -74,25 +78,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     super.dispose();
   }
 
-
   void _selectDrawerItem(String item) {
-    Navigator.pop(context);
+    Navigator.pop(context); // Close the drawer
     if (mounted) {
       setState(() {
         _selectedDrawerItem = item;
       });
     }
 
+    // Now handle navigation for specific pages. For simpler cases,
+    // we just change the state and the main body rebuilds.
     switch (item) {
       case 'Post New Property':
         handlePostPropertyAction(context);
         break;
-      case 'Populate Amenities':
-        DatabaseSeeder.seedDatabase(context);
-        break;
       case 'Log Out':
         Provider.of<AuthProvider>(context, listen: false).logout();
         Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+        break;
+      case 'Populate Amenities':
+        DatabaseSeeder.seedDatabase(context);
         break;
     }
   }
@@ -164,7 +169,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       // Property Type
                       Wrap(
                         spacing: 8,
-                        children: PropertyType.values.map((type) { // Changed to use PropertyType enum
+                        children: PropertyType.values.map((type) {
                           final selected = _selectedType == type;
                           return ChoiceChip(
                             label: Text(type.toCapitalizedString()),
@@ -250,11 +255,131 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
+  // A helper widget to build the home page's main content
+  Widget _buildHomePageContent() {
+    return Column(
+      children: [
+        Material(
+          elevation: 2,
+          borderRadius: BorderRadius.circular(30),
+          child: TextField(
+            controller: _searchController,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            decoration: InputDecoration(
+              hintText: 'Search properties...',
+              prefixIcon: Icon(Icons.search,
+                  color: Theme.of(context).colorScheme.onSurface),
+              suffixIcon: IconButton(
+                icon: Icon(Icons.filter_list,
+                    color: Theme.of(context).colorScheme.onSurface),
+                onPressed: _openFilterDrawer,
+              ),
+              border: InputBorder.none,
+              contentPadding:
+              const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surface,
+            ),
+          ),
+        ),
+        const SizedBox(height: 32),
+        Text(
+          'All Properties',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot<Property>>(
+            stream: FirebaseFirestore.instance.collection('properties').withConverter<Property>(
+              fromFirestore: (snapshot, options) => Property.fromFirestore(snapshot),
+              toFirestore: (property, options) => property.toFirestore(),
+            ).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(child: Text('No properties available.'));
+              }
+
+              final propertyDocs = snapshot.data!.docs;
+
+              // Use a FutureBuilder to fetch images for all properties before building the list
+              return FutureBuilder<List<PropertyWithImages>>(
+                future: Future.wait(
+                  propertyDocs.map((doc) async {
+                    final property = doc.data();
+                    final imageSnapshot = await FirebaseFirestore.instance
+                        .collection('property_images')
+                        .where('property_id', isEqualTo: property.propertyId)
+                        .limit(1)
+                        .get(const GetOptions(source: Source.serverAndCache));
+
+                    String? imageUrl;
+                    if (imageSnapshot.docs.isNotEmpty) {
+                      imageUrl = imageSnapshot.docs.first['image_url'] as String;
+                    }
+                    return PropertyWithImages(property: property, imageUrl: imageUrl);
+                  }),
+                ),
+                builder: (context, futureSnapshot) {
+                  if (futureSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (futureSnapshot.hasError) {
+                    return Center(child: Text('Error fetching images: ${futureSnapshot.error}'));
+                  }
+                  if (!futureSnapshot.hasData || futureSnapshot.data!.isEmpty) {
+                    return const Center(child: Text('No properties available.'));
+                  }
+
+                  final propertiesWithImages = futureSnapshot.data!;
+
+                  return ListView.builder(
+                    itemCount: propertiesWithImages.length,
+                    itemBuilder: (context, index) {
+                      final item = propertiesWithImages[index];
+                      return PropertyCardView(
+                        property: item.property,
+                        imageUrl: item.imageUrl,
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.currentUser;
     final isGuest = user?.userId == 'guest_user_id';
+
+    // The body content changes based on the selected drawer item
+    Widget currentBody;
+    switch (_selectedDrawerItem) {
+      case 'Shortlisted/Favourite Properties':
+        currentBody = const FavouritePage();
+        break;
+      case 'My Listings':
+        currentBody = const ListingsPage();
+        break;
+      case 'Home Page':
+      default:
+        currentBody = _buildHomePageContent();
+        break;
+    }
 
     return Scaffold(
       key: _scaffoldKey,
@@ -358,48 +483,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ),
         ),
       ),
-      body: user == null
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ListView(
-          children: [
-            Material(
-              elevation: 2,
-              borderRadius: BorderRadius.circular(30),
-              child: TextField(
-                controller: _searchController,
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                decoration: InputDecoration(
-                  hintText: 'Search properties...',
-                  prefixIcon: Icon(Icons.search,
-                      color: Theme.of(context).colorScheme.onSurface),
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.filter_list,
-                        color: Theme.of(context).colorScheme.onSurface),
-                    onPressed: _openFilterDrawer,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding:
-                  const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surface,
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'All Properties',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 16),
-            PropertyCardView(),
-          ],
-        ),
+        child: currentBody,
       ),
     );
   }
+}
+
+// A new data model to combine Property and imageUrl
+class PropertyWithImages {
+  final Property property;
+  final String? imageUrl;
+
+  PropertyWithImages({required this.property, this.imageUrl});
 }

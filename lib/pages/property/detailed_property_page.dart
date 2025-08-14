@@ -1,143 +1,437 @@
 // lib/pages/property/detailed_property_page.dart
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/services.dart';
 import 'package:real_estate/models/property.dart';
 import 'package:real_estate/models/property_details.dart';
-import 'package:real_estate/models/city.dart';
+import 'package:real_estate/models/favourite.dart';
 import 'package:real_estate/models/amenity.dart';
-import 'package:real_estate/models/user.dart';
+import 'package:real_estate/models/enums.dart';
+import 'package:real_estate/providers/auth_provider.dart';
 import 'package:real_estate/theme/custom_colors.dart';
+import 'package:real_estate/models/city.dart';
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/services.dart';
 
-class DetailPropertyPage extends StatefulWidget {
+class DetailedPropertyPage extends StatefulWidget {
   final Property property;
 
-  const DetailPropertyPage({super.key, required this.property});
+  const DetailedPropertyPage({
+    super.key,
+    required this.property,
+  });
 
   @override
-  State<DetailPropertyPage> createState() => _DetailPropertyPageState();
+  State<DetailedPropertyPage> createState() => _DetailedPropertyPageState();
 }
 
-class _DetailPropertyPageState extends State<DetailPropertyPage> {
-  Future<String?> _fetchPropertyImageUrl(String propertyId) async {
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('property_images')
-          .where('property_id', isEqualTo: propertyId)
-          .limit(1)
-          .get();
-      if (snapshot.docs.isNotEmpty) {
-        return snapshot.docs.first.data()['image_url'] as String;
-      }
-      return null;
-    } catch (e) {
-      debugPrint('Error fetching image URL: $e');
-      return null;
-    }
+class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
+  // Futures to fetch data from Firestore
+  late Future<PropertyDetails?> _propertyDetailsFuture;
+  late Future<List<String>> _propertyImagesFuture;
+  late Future<List<Amenity>> _propertyAmenitiesFuture;
+  late Future<City?> _cityFuture;
+  late Future<DocumentSnapshot<Map<String, dynamic>>> _userFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _propertyDetailsFuture = _fetchPropertyDetails(widget.property.pDetailsId);
+    _propertyImagesFuture = _fetchPropertyImages(widget.property.propertyId);
+    _propertyAmenitiesFuture = _fetchAmenities(widget.property.propertyId);
+    _cityFuture = _fetchCity(widget.property.cityId);
+    _userFuture = _fetchUser(widget.property.ownerId);
   }
 
+  /// Fetches property details from the 'property_details' collection
   Future<PropertyDetails?> _fetchPropertyDetails(String pDetailsId) async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('property_details')
-          .doc(pDetailsId)
-          .get();
-      if (snapshot.exists) {
-        return PropertyDetails.fromFirestore(snapshot);
-      }
-      return null;
+      final snapshot = await FirebaseFirestore.instance.collection('property_details').doc(pDetailsId).get();
+      return snapshot.exists ? PropertyDetails.fromFirestore(snapshot) : null;
     } catch (e) {
       debugPrint('Error fetching property details: $e');
       return null;
     }
   }
 
-  Future<City?> _fetchCity(String cityId) async {
+  /// Fetches property images from the 'property_images' collection
+  Future<List<String>> _fetchPropertyImages(String propertyId) async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('cities')
-          .doc(cityId)
-          .get();
-      if (snapshot.exists) {
-        return City.fromFirestore(snapshot);
-      }
-      return null;
+      final snapshot = await FirebaseFirestore.instance.collection('property_images').where('property_id', isEqualTo: propertyId).get();
+      return snapshot.docs.map((doc) => doc['image_url'] as String).toList();
     } catch (e) {
-      debugPrint('Error fetching city: $e');
-      return null;
+      debugPrint('Error fetching property images: $e');
+      return [];
     }
   }
 
+  /// Fetches amenities from the 'property_amenities' collection
   Future<List<Amenity>> _fetchAmenities(String propertyId) async {
     try {
-      final propertyAmenitySnapshot = await FirebaseFirestore.instance
+      final propertyAmenitiesSnapshot = await FirebaseFirestore.instance
           .collection('property_amenities')
           .where('property_id', isEqualTo: propertyId)
           .get();
 
-      final List<String> amenityIds = propertyAmenitySnapshot.docs
-          .map((doc) => doc.data()['amenity_id'] as String)
-          .toList();
-
+      final amenityIds = propertyAmenitiesSnapshot.docs.map((doc) => doc['amenity_id'] as String).toList();
       if (amenityIds.isEmpty) {
         return [];
       }
 
-      final amenitiesSnapshot = await FirebaseFirestore.instance
-          .collection('amenities')
-          .where(FieldPath.documentId, whereIn: amenityIds)
-          .get();
+      final amenityFutures = amenityIds.map((id) => FirebaseFirestore.instance.collection('amenities').doc(id).get());
+      final amenityDocs = await Future.wait(amenityFutures);
 
-      return amenitiesSnapshot.docs.map((doc) => Amenity.fromFirestore(doc)).toList();
+      return amenityDocs.map((doc) => Amenity.fromFirestore(doc)).toList();
     } catch (e) {
       debugPrint('Error fetching amenities: $e');
       return [];
     }
   }
 
-  Future<User?> _fetchOwner(String ownerId) async {
+  /// Fetches the city details from the 'cities' collection
+  Future<City?> _fetchCity(String cityId) async {
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('users').doc(ownerId).get();
-      if (snapshot.exists) {
-        return User.fromFirestore(snapshot);
-      }
-      return null;
+      final snapshot = await FirebaseFirestore.instance.collection('cities').doc(cityId).get();
+      return snapshot.exists ? City.fromFirestore(snapshot) : null;
     } catch (e) {
-      debugPrint('Error fetching owner: $e');
+      debugPrint('Error fetching city: $e');
       return null;
     }
   }
 
-  void _showContactDialog(User owner) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Contact ${owner.firstName}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildContactRow(
-                context,
-                Icons.phone,
-                'Phone Number',
-                owner.phoneNumber,
+  /// Fetches the user details from the 'users' collection
+  Future<DocumentSnapshot<Map<String, dynamic>>> _fetchUser(String userId) async {
+    return FirebaseFirestore.instance.collection('users').doc(userId).get();
+  }
+
+  // Function to toggle a property as a favorite
+  Future<void> _toggleFavourite(BuildContext context) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.userId;
+    if (userId == null || userId == "guest_user_id") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to shortlist properties.')),
+      );
+      return;
+    }
+
+    try {
+      final favouriteRef = FirebaseFirestore.instance.collection('favourites');
+      final querySnapshot = await favouriteRef
+          .where('user_id', isEqualTo: userId)
+          .where('property_id', isEqualTo: widget.property.propertyId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        await favouriteRef.doc(querySnapshot.docs.first.id).delete();
+      } else {
+        final newFavourite = Favourite(
+          favouriteId: '',
+          propertyId: widget.property.propertyId,
+          userId: userId,
+          createdAt: DateTime.now(),
+        );
+        await favouriteRef.add(newFavourite.toFirestore());
+      }
+    } catch (e) {
+      debugPrint('Error toggling favorite: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update shortlist.')),
+      );
+    }
+  }
+
+  /// Displays a dialog with the property owner's contact details.
+  Future<void> _showContactDialog() async {
+    try {
+      final userSnapshot = await _userFuture;
+
+      if (userSnapshot == null || !userSnapshot.exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not find contact details.')),
+          );
+        }
+        return;
+      }
+
+      final userData = userSnapshot.data()!;
+      final firstName = userData['first_name'] ?? 'Owner';
+      final phone = userData['phone_number'] ?? 'N/A';
+      final whatsapp = userData['whatsapp_number'] ?? 'N/A';
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Contact $firstName'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Phone Number:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(phone),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 20),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: phone));
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Phone number copied to clipboard!')),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('WhatsApp Number:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(whatsapp),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 20),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: whatsapp));
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('WhatsApp number copied to clipboard!')),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              _buildContactRow(
-                context,
-                Icons.quick_contacts_dialer_outlined,
-                'WhatsApp Number',
-                owner.whatsappNumber,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('Error showing contact dialog: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('An error occurred while fetching contact details.')),
+        );
+      }
+    }
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: CustomColors.background,
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // The Hero Image section, which is a Stack of widgets
+            _buildHeroImageSection(),
+
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Price and property details row
+                  _buildPriceSection(),
+
+                  const SizedBox(height: 16),
+
+                  // Details section (newly moved to prevent overflow)
+                  _buildDetailsSection(),
+
+                  const SizedBox(height: 24),
+
+                  // Description section
+                  Text(
+                    'About This Property',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: CustomColors.darkGreen,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.property.description ?? 'No description provided.',
+                    style: const TextStyle(fontSize: 16, color: CustomColors.mutedGreen),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Construction Status Chip
+                  _buildConstructionStatusChip(),
+
+                  const SizedBox(height: 24),
+
+                  // Amenities section
+                  _buildAmenitiesSection(),
+                ],
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton(
+          onPressed: _showContactDialog,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
+          child: const Text(
+            'Contact Now',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Builds the top hero image section with all the overlaid UI elements.
+  Widget _buildHeroImageSection() {
+    final userId = Provider.of<AuthProvider>(context).userId;
+
+    return FutureBuilder<List<String>>(
+      future: _propertyImagesFuture,
+      builder: (context, snapshot) {
+        final imageUrl = snapshot.data?.isNotEmpty == true ? snapshot.data!.first : null;
+        return Stack(
+          children: [
+            // Main image with placeholder
+            Container(
+              height: 400,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+              ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+                child: imageUrl != null
+                    ? CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Icon(Icons.image_not_supported, size: 100, color: Colors.grey),
+                    ),
+                  ),
+                )
+                    : Container(
+                  color: Colors.grey[300],
+                  child: const Center(
+                    child: Icon(Icons.apartment, size: 150, color: Colors.grey),
+                  ),
+                ),
+              ),
+            ),
+
+            // Overlaid UI at the top
+            Positioned(
+              top: 40,
+              left: 16,
+              right: 16,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Back Button
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withOpacity(0.5),
+                    ),
+                  ),
+                  // Favorite Button
+                  if (userId != null)
+                    StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('favourites')
+                          .where('user_id', isEqualTo: userId)
+                          .where('property_id', isEqualTo: widget.property.propertyId)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        final isFavourited = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+                        return IconButton(
+                          icon: Icon(
+                            isFavourited ? Icons.favorite : Icons.favorite_border,
+                            color: isFavourited ? Colors.red : Colors.white,
+                          ),
+                          onPressed: () => _toggleFavourite(context),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.black.withOpacity(0.5),
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
+
+            // Overlaid title and address at the bottom
+            Positioned(
+              bottom: 24,
+              left: 24,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.property.title,
+                    style: const TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                    ),
+                  ),
+                  FutureBuilder<City?>(
+                    future: _cityFuture,
+                    builder: (context, snapshot) {
+                      String cityAndAddress = widget.property.locationAddress;
+                      if (snapshot.hasData && snapshot.data != null) {
+                        cityAndAddress = '${widget.property.locationAddress}, ${snapshot.data!.cityName}';
+                      }
+                      return Text(
+                        cityAndAddress,
+                        style: const TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 16,
+                          color: Colors.white,
+                          shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -145,292 +439,151 @@ class _DetailPropertyPageState extends State<DetailPropertyPage> {
     );
   }
 
-  Widget _buildContactRow(BuildContext context, IconData icon, String label, String number) {
+  /// Builds the price section, including the price per sqft.
+  Widget _buildPriceSection() {
+    // Calculate price per sqft, handling potential division by zero
+    final pricePerSqft = widget.property.size > 0
+        ? (widget.property.price / widget.property.size).toStringAsFixed(2)
+        : 'N/A';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+        Text(
+          'Price',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: CustomColors.mutedGreen,
+          ),
+        ),
+        Text(
+          '₹${widget.property.price.toStringAsFixed(2)}',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
         const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Colors.green),
-                const SizedBox(width: 8),
-                Text(number, style: Theme.of(context).textTheme.titleMedium),
-              ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.copy, color: Colors.grey),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: number));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Number copied to clipboard!')),
-                );
-              },
-            ),
-          ],
+        Text(
+          '₹$pricePerSqft per sqft',
+          style: const TextStyle(
+            fontSize: 14,
+            color: CustomColors.mutedGreen,
+          ),
         ),
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final property = widget.property;
-    final colorScheme = theme.colorScheme;
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share_rounded, color: Colors.black),
-            onPressed: () {
-              // TODO: Implement share functionality
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.favorite_border_rounded, color: Colors.black),
-            onPressed: () {
-              // TODO: Implement favorite functionality
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  /// Builds the property details section with icons (BHK, Bathrooms, Size).
+  Widget _buildDetailsSection() {
+    return FutureBuilder<PropertyDetails?>(
+      future: _propertyDetailsFuture,
+      builder: (context, snapshot) {
+        final details = snapshot.data;
+        if (details == null) {
+          return const SizedBox.shrink();
+        }
+        return Row(
           children: [
-            FutureBuilder<String?>(
-              future: _fetchPropertyImageUrl(property.propertyId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SizedBox(
-                    height: 350,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                if (snapshot.hasData && snapshot.data != null) {
-                  return Stack(
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl: snapshot.data!,
-                        height: 350,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          height: 350,
-                          color: Colors.grey[200],
-                          child: const Center(child: CircularProgressIndicator()),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          height: 350,
-                          color: Colors.grey[300],
-                          child: const Center(
-                            child: Icon(Icons.apartment, size: 100, color: Colors.grey),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 16,
-                        right: 16,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            'Open for sale',
-                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                } else {
-                  return Container(
-                    height: 350,
-                    color: Colors.grey[300],
-                    child: const Center(
-                      child: Icon(Icons.apartment, size: 100, color: Colors.grey),
-                    ),
-                  );
-                }
-              },
+            _buildDetailIcon(
+              icon: Icons.king_bed_rounded,
+              label: '${details.bhk} BHK',
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  Text(
-                    property.title.isNotEmpty ? property.title : "Not Available",
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: CustomColors.darkGreen,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Location
-                  FutureBuilder<City?>(
-                    future: _fetchCity(property.cityId),
-                    builder: (context, snapshot) {
-                      String locationText = property.locationAddress.isNotEmpty
-                          ? property.locationAddress
-                          : "Not Available";
-
-                      if (snapshot.hasData && snapshot.data != null) {
-                        locationText = "${property.locationAddress}, ${snapshot.data!.cityName}";
-                      }
-
-                      return Text(
-                        locationText,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: CustomColors.mutedGreen,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Price and details
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          "\₹${property.price.toStringAsFixed(0)}",
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: CustomColors.darkGreen,
-                          ),
-                        ),
-                      ),
-                      FutureBuilder<PropertyDetails?>(
-                        future: _fetchPropertyDetails(property.pDetailsId),
-                        builder: (context, snapshot) {
-                          if (snapshot.hasData && snapshot.data != null) {
-                            final details = snapshot.data!;
-                            return Row(
-                              children: [
-                                _buildDetailItem(context, "${details.bhk} Beds"),
-                                _buildDetailItem(context, "${details.bathrooms} Bath"),
-                                _buildDetailItem(context, "${property.size} m²"),
-                              ],
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Description
-                  Text(
-                    "Overview",
-                    style: theme.textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    property.description ?? "Not Available",
-                    style: const TextStyle(fontSize: 16, color: Colors.black),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Amenities
-                  Text(
-                    "Amenities",
-                    style: theme.textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  FutureBuilder<List<Amenity>>(
-                    future: _fetchAmenities(property.propertyId),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Text(
-                          "No amenities listed",
-                          style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: Colors.grey),
-                        );
-                      }
-                      return Wrap(
-                        spacing: 8.0,
-                        runSpacing: 4.0,
-                        children: snapshot.data!.map((amenity) {
-                          return Chip(
-                            label: Text(amenity.amenityName),
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final owner = await _fetchOwner(property.ownerId);
-                        if (owner != null) {
-                          _showContactDialog(owner);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Owner details not available.')),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: CustomColors.darkGreen,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.0),
-                        ),
-                      ),
-                      child: Text(
-                        "Contact Now",
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  )
-                ],
-              ),
+            const SizedBox(width: 16),
+            _buildDetailIcon(
+              icon: Icons.bathtub_rounded,
+              label: '${details.bathrooms} Bath',
+            ),
+            const SizedBox(width: 16),
+            _buildDetailIcon(
+              icon: Icons.crop_square,
+              label: '${widget.property.size} sqft',
             ),
           ],
-        ),
+        );
+      },
+    );
+  }
+
+  /// Builds the amenities section with a FutureBuilder.
+  Widget _buildAmenitiesSection() {
+    return FutureBuilder<List<Amenity>>(
+      future: _propertyAmenitiesFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final amenities = snapshot.data!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Amenities',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: CustomColors.darkGreen,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children: amenities.map((amenity) {
+                return Chip(
+                  label: Text(amenity.amenityName),
+                  backgroundColor: CustomColors.cardColor,
+                  side: const BorderSide(color: CustomColors.mutedGreen),
+                );
+              }).toList(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Helper widget to build the Construction Status chip.
+  Widget _buildConstructionStatusChip() {
+    final constructionStatus = widget.property.constructionStatus;
+    String label = constructionStatus.toCapitalizedString();
+
+    if (constructionStatus == ConstructionStatus.underConstruction && widget.property.readyBy != null) {
+      label = '$label (Ready by: ${widget.property.readyBy})';
+    }
+
+    return Chip(
+      label: Text(
+        label,
+        style: const TextStyle(color: CustomColors.darkGreen),
+      ),
+      backgroundColor: CustomColors.cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: CustomColors.mutedGreen),
       ),
     );
   }
-}
 
-Widget _buildDetailItem(BuildContext context, String text) {
-  return Container(
-    margin: const EdgeInsets.symmetric(horizontal: 4),
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surfaceVariant,
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(
-      text,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
-    ),
-  );
+  /// Helper widget to build the icon and label for property details in the new layout.
+  Widget _buildDetailIcon({required IconData icon, required String label}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircleAvatar(
+          backgroundColor: CustomColors.background,
+          child: Icon(icon, color: CustomColors.darkGreen, size: 24),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: CustomColors.mutedGreen,
+          ),
+        ),
+      ],
+    );
+  }
 }

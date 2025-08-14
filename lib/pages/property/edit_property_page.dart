@@ -1,4 +1,4 @@
-// lib/pages/home/drawer/post_property_page.dart
+// lib/pages/property/edit_property_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -12,19 +12,21 @@ import '../../../models/property.dart';
 import '../../../models/amenity.dart';
 import '../../../models/property_details.dart';
 import '../../../models/city.dart';
+import '../../../models/property_with_images.dart';
+import '../../../providers/property_provider.dart';
 import '../../../providers/auth_provider.dart';
 
-
-class PostPropertyPage extends StatefulWidget {
-  const PostPropertyPage({super.key});
+class EditPropertyPage extends StatefulWidget {
+  final PropertyWithImages propertyWithImages;
+  const EditPropertyPage({super.key, required this.propertyWithImages});
   @override
-  State<PostPropertyPage> createState() => _PostPropertyPageState();
+  State<EditPropertyPage> createState() => _EditPropertyPageState();
 }
-class _PostPropertyPageState extends State<PostPropertyPage> {
+class _EditPropertyPageState extends State<EditPropertyPage> {
   final _formKey = GlobalKey<FormState>();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
-// Form field controllers and variables
+  // Form field controllers and variables
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _locationAddressController = TextEditingController();
@@ -35,51 +37,87 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
   ConstructionStatus? _selectedConstructionStatus;
   Furnishing? _selectedFurnishingStatus;
   bool _isNegotiable = false;
-// For PropertyDetails (BHK, Bathrooms, Balcony)
+  // For PropertyDetails (BHK, Bathrooms, Balcony)
   List<PropertyDetails> _allPropertyDetails = [];
   String? _selectedPropertyDetailsId;
-// For Cities
+  // For Cities
   List<City> _allCities = [];
   String? _selectedCityId;
-// For Amenities
+  // For Amenities
   List<Amenity> _allAmenities = [];
   final List<String> _selectedAmenityIds = [];
-// For Images - Change the type to `XFile` for platform-independent handling
-  final List<XFile> _selectedImages = [];
+  // For Images - Managing existing, new, and deleted images
+  final List<String> _existingImageUrls = [];
+  final List<String> _deletedImageUrls = [];
+  final List<XFile> _newImages = [];
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
-// State variables for manual dropdown validation errors
+  // State variables for manual dropdown validation errors
   bool _propertyTypeHasError = false;
   bool _cityHasError = false;
   bool _pDetailsHasError = false;
   bool _constructionStatusHasError = false;
   bool _furnishingHasError = false;
+
   @override
   void initState() {
     super.initState();
     _fetchDropdownData();
+    _initializeFormFields();
   }
-// Fetch predefined data for dropdowns
+
+  void _initializeFormFields() {
+    final property = widget.propertyWithImages.property;
+    final images = widget.propertyWithImages.images;
+    _titleController.text = property.title;
+    _descriptionController.text = property.description ?? '';
+    _locationAddressController.text = property.locationAddress;
+    _sizeController.text = property.size.toString();
+    _priceController.text = property.price.toString();
+    _readyByController.text = property.readyBy ?? '';
+    _selectedPropertyType = property.propertyType;
+    _selectedConstructionStatus = property.constructionStatus;
+    _selectedFurnishingStatus = property.furnishing;
+    _isNegotiable = property.isNegotiable;
+    _selectedCityId = property.cityId;
+    _selectedPropertyDetailsId = property.pDetailsId;
+    _existingImageUrls.addAll(images);
+
+    _firestore.collection('property_amenities')
+        .where('property_id', isEqualTo: property.propertyId)
+        .get().then((snapshot) {
+      if (mounted) {
+        setState(() {
+          _selectedAmenityIds.addAll(snapshot.docs.map((doc) => doc['amenity_id'] as String));
+        });
+      }
+    });
+  }
+
+  // Fetch predefined data for dropdowns
   Future<void> _fetchDropdownData() async {
     try {
       final detailsSnapshot = await _firestore.collection('property_details').get();
       final amenitiesSnapshot = await _firestore.collection('amenities').get();
       final citiesSnapshot = await _firestore.collection('cities').get();
-      setState(() {
-        _allPropertyDetails = detailsSnapshot.docs
-            .map((doc) => PropertyDetails.fromFirestore(doc))
-            .toList();
-        _allAmenities = amenitiesSnapshot.docs
-            .map((doc) => Amenity.fromFirestore(doc))
-            .toList();
-        _allCities = citiesSnapshot.docs
-            .map((doc) => City.fromFirestore(doc))
-            .toList();
-      });
+      if (mounted) {
+        setState(() {
+          _allPropertyDetails = detailsSnapshot.docs
+              .map((doc) => PropertyDetails.fromFirestore(doc))
+              .toList();
+          _allAmenities = amenitiesSnapshot.docs
+              .map((doc) => Amenity.fromFirestore(doc))
+              .toList();
+          _allCities = citiesSnapshot.docs
+              .map((doc) => City.fromFirestore(doc))
+              .toList();
+        });
+      }
     } catch (e) {
       Fluttertoast.showToast(msg: 'Failed to fetch dropdown data: $e');
     }
   }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -90,63 +128,45 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
     _readyByController.dispose();
     super.dispose();
   }
-// Function to pick images from the gallery
-  Future<void> _pickImages() async {
+
+  // Function to pick new images from the gallery
+  Future<void> _pickNewImages() async {
     final List<XFile> images = await _picker.pickMultiImage();
     if (images.isNotEmpty) {
       setState(() {
-        _selectedImages.addAll(images);
+        _newImages.addAll(images);
       });
     }
   }
-// Helper function to clear the form fields
-  void _clearForm() {
-    _formKey.currentState?.reset();
-    _titleController.clear();
-    _descriptionController.clear();
-    _locationAddressController.clear();
-    _sizeController.clear();
-    _priceController.clear();
-    _readyByController.clear();
+
+  // Function to remove an image
+  void _removeImage(String? url, XFile? xFile) {
     setState(() {
-      _selectedPropertyType = null;
-      _selectedConstructionStatus = null;
-      _selectedFurnishingStatus = null;
-      _isNegotiable = false;
-      _selectedPropertyDetailsId = null;
-      _selectedCityId = null;
-      _selectedAmenityIds.clear();
-      _selectedImages.clear();
-      _isUploading = false;
-      _propertyTypeHasError = false;
-      _cityHasError = false;
-      _pDetailsHasError = false;
-      _constructionStatusHasError = false;
-      _furnishingHasError = false;
+      if (url != null) {
+        _existingImageUrls.remove(url);
+        _deletedImageUrls.add(url);
+      }
+      if (xFile != null) {
+        _newImages.remove(xFile);
+      }
     });
   }
-// Function to show the success dialog
+
+  // Function to show the success dialog
   void _showSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Property Posted'),
-          content: const Text('Your property has been successfully listed!'),
+          title: const Text('Property Updated'),
+          content: const Text('Your property has been successfully updated!'),
           actions: [
-            TextButton(
-              child: const Text('Add More'),
-              onPressed: () {
-                _clearForm();
-                Navigator.of(context).pop(); // Dismiss the dialog
-              },
-            ),
             TextButton(
               child: const Text('OK'),
               onPressed: () {
                 Navigator.of(context).pop(); // Dismiss the dialog
-                Navigator.of(context).pop(); // Navigate back to the home page
+                Navigator.of(context).pop(); // Navigate back
               },
             ),
           ],
@@ -154,9 +174,9 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
       },
     );
   }
-// The main function to submit the form and save all data to Firestore
+
+  // The main function to submit the form and save all data to Firestore
   Future<void> _submitForm() async {
-// Manually validate dropdowns before the form
     setState(() {
       _propertyTypeHasError = _selectedPropertyType == null;
       _cityHasError = _selectedCityId == null;
@@ -164,6 +184,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
       _constructionStatusHasError = _selectedConstructionStatus == null;
       _furnishingHasError = _selectedFurnishingStatus == null;
     });
+
     if (_formKey.currentState?.validate() ?? false &&
         !_propertyTypeHasError &&
         !_cityHasError &&
@@ -174,20 +195,17 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
       setState(() {
         _isUploading = true;
       });
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final ownerId = authProvider.currentUser?.userId;
-      if (ownerId == null||ownerId == "guest_user_id") {
-        Fluttertoast.showToast(msg: 'Please log in to post a property.');
-        setState(() {
-          _isUploading = false;
-        });
-        return;
-      }
+      final propertyProvider = Provider.of<PropertyProvider>(context, listen: false);
+      final propertyId = widget.propertyWithImages.property.propertyId;
+
       try {
-        final batch = _firestore.batch();
-        final propertyDocRef = _firestore.collection('properties').doc();
-        final propertyId = propertyDocRef.id;
-        final newProperty = Property(
+        final oldAmenityIdsSnapshot = await _firestore
+            .collection('property_amenities')
+            .where('property_id', isEqualTo: propertyId)
+            .get();
+        final oldAmenityIds = oldAmenityIdsSnapshot.docs.map((doc) => doc['amenity_id'] as String).toList();
+
+        final updatedProperty = Property(
           propertyId: propertyId,
           propertyType: _selectedPropertyType!,
           title: _titleController.text,
@@ -200,78 +218,45 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
           furnishing: _selectedFurnishingStatus!,
           pDetailsId: _selectedPropertyDetailsId!,
           cityId: _selectedCityId!,
-          ownerId: ownerId,
-          createdAt: DateTime.now(),
+          ownerId: widget.propertyWithImages.property.ownerId,
+          createdAt: widget.propertyWithImages.property.createdAt,
           readyBy: _selectedConstructionStatus == ConstructionStatus.underConstruction
               ? _readyByController.text
               : null,
         );
-        batch.set(propertyDocRef, newProperty.toFirestore());
-// Save selected amenities to the 'property_amenities' collection in the batch
-        if (_selectedAmenityIds.isNotEmpty) {
-          for (final amenityId in _selectedAmenityIds) {
-            final amenityDocRef = _firestore.collection('property_amenities').doc();
-            batch.set(amenityDocRef, {
-              'property_id': propertyId,
-              'amenity_id': amenityId,
-            });
-          }
-        }
-        if (_selectedImages.isNotEmpty) {
-          print('Starting image upload for property ID: $propertyId');
-          for (final imageXFile in _selectedImages) {
-            try {
-              final fileName = '${DateTime.now().millisecondsSinceEpoch}_${imageXFile.name}';
-              final storageRef = _storage.ref().child('properties/$propertyId/images/$fileName');
-              String downloadUrl;
-              if (kIsWeb) {
-                final bytes = await imageXFile.readAsBytes();
-                final uploadTask = storageRef.putData(bytes);
-                final snapshot = await uploadTask.whenComplete(() {});
-                downloadUrl = await snapshot.ref.getDownloadURL();
-              } else {
-                final imageFile = File(imageXFile.path);
-                final uploadTask = storageRef.putFile(imageFile);
-                final snapshot = await uploadTask.whenComplete(() {});
-                downloadUrl = await snapshot.ref.getDownloadURL();
-              }
-              final imageDocRef = _firestore.collection('property_images').doc();
-              batch.set(imageDocRef, {
-                'property_id': propertyId,
-                'image_url': downloadUrl,
-                'uploaded_at': FieldValue.serverTimestamp(),
-              });
-              print('Successfully uploaded and added image URL to batch for: $fileName');
-            } catch (e) {
-              print('Error uploading image or adding to batch: $e');
-              Fluttertoast.showToast(msg: 'Error uploading image: $e');
-            }
-          }
-        }
-        print('Attempting to commit Firestore batch...');
-        await batch.commit();
-        print('Batch committed successfully!');
+
+        await propertyProvider.updateListing(
+          propertyId: propertyId,
+          updatedProperty: updatedProperty,
+          oldAmenityIds: oldAmenityIds,
+          newAmenityIds: _selectedAmenityIds,
+          existingImageUrls: _existingImageUrls,
+          deletedImageUrls: _deletedImageUrls,
+          newImages: _newImages,
+        );
+
         _showSuccessDialog();
       } on FirebaseException catch (e) {
-        print('Firebase Exception while posting property: $e');
-        Fluttertoast.showToast(msg: 'Failed to post property (Firebase): ${e.message}');
+        Fluttertoast.showToast(msg: 'Failed to update property (Firebase): ${e.message}');
       } catch (e) {
-        print('General Exception while posting property: $e');
-        Fluttertoast.showToast(msg: 'Failed to post property: $e');
+        Fluttertoast.showToast(msg: 'Failed to update property: $e');
       } finally {
-        setState(() {
-          _isUploading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+          });
+        }
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Post a New Property',
+          'Edit Property',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             color: colorScheme.onSurface,
           ),
@@ -290,7 +275,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-// Title
+              // Title
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
@@ -305,16 +290,16 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 },
               ),
               const SizedBox(height: 16),
-// Description (Optional)
+              // Description (Optional)
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
                   labelText: 'Description (Optional)',
-                  hintText: 'e.g., A detailed description of the property highlights the property...',
+                  hintText: 'e.g., A detailed description...',
                 ),
               ),
               const SizedBox(height: 16),
-// Location Address
+              // Location Address
               TextFormField(
                 controller: _locationAddressController,
                 decoration: const InputDecoration(
@@ -329,7 +314,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 },
               ),
               const SizedBox(height: 16),
-// Property Type Dropdown
+              // Property Type Dropdown
               InputDecorator(
                 decoration: InputDecoration(
                   labelText: 'Property Type',
@@ -345,7 +330,6 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                   items: PropertyType.values.map((type) {
                     return DropdownMenuItem<PropertyType>(
                       value: type,
-                      // Use the new extension method to format the string
                       child: Text(type.toCapitalizedString()),
                     );
                   }).toList(),
@@ -358,7 +342,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 ),
               ),
               const SizedBox(height: 16),
-// City Dropdown
+              // City Dropdown
               InputDecorator(
                 decoration: InputDecoration(
                   labelText: 'City',
@@ -386,7 +370,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 ),
               ),
               const SizedBox(height: 16),
-// Property Details Dropdown
+              // Property Details Dropdown
               InputDecorator(
                 decoration: InputDecoration(
                   labelText: 'Bedrooms, Bathrooms, Balcony',
@@ -414,7 +398,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 ),
               ),
               const SizedBox(height: 16),
-// Size
+              // Size
               TextFormField(
                 controller: _sizeController,
                 decoration: const InputDecoration(
@@ -433,7 +417,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 },
               ),
               const SizedBox(height: 16),
-// Price
+              // Price
               TextFormField(
                 controller: _priceController,
                 decoration: const InputDecoration(
@@ -452,7 +436,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 },
               ),
               const SizedBox(height: 16),
-// Is Negotiable
+              // Is Negotiable
               Row(
                 children: [
                   Expanded(
@@ -473,7 +457,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 ],
               ),
               const SizedBox(height: 16),
-// Construction Status Dropdown
+              // Construction Status Dropdown
               InputDecorator(
                 decoration: InputDecoration(
                   labelText: 'Construction Status',
@@ -497,7 +481,6 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                       _selectedConstructionStatus = value;
                       if (value != null) {
                         _constructionStatusHasError = false;
-                        // Clear the readyBy field if not "Under Construction"
                         if (value != ConstructionStatus.underConstruction) {
                           _readyByController.clear();
                         }
@@ -507,7 +490,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 ),
               ),
               const SizedBox(height: 16),
-// Conditionally display the "Ready By" field
+              // Conditionally display the "Ready By" field
               if (_selectedConstructionStatus == ConstructionStatus.underConstruction)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -519,7 +502,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                     ),
                   ),
                 ),
-// Furnishing Dropdown
+              // Furnishing Dropdown
               InputDecorator(
                 decoration: InputDecoration(
                   labelText: 'Furnishing Status',
@@ -547,7 +530,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 ),
               ),
               const SizedBox(height: 32),
-// Amenities Section
+              // Amenities Section
               Card(
                 elevation: 2,
                 child: Padding(
@@ -587,7 +570,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 ),
               ),
               const SizedBox(height: 16),
-// Image Picker Section (Now optional)
+              // Image Picker Section
               Card(
                 elevation: 2,
                 child: Padding(
@@ -596,7 +579,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Property Images (Optional)',
+                        'Property Images',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -604,65 +587,62 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
-                        onPressed: _pickImages,
+                        onPressed: _pickNewImages,
                         icon: const Icon(Icons.add_a_photo),
-                        label: const Text('Add Images'),
+                        label: const Text('Add New Images'),
                       ),
                       const SizedBox(height: 16),
-                      _selectedImages.isNotEmpty
-                          ? GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                        ),
-                        itemCount: _selectedImages.length,
-                        itemBuilder: (context, index) {
-// Display image using its path on mobile and a memory image on web
-                          if (kIsWeb) {
-// On web, use a FutureBuilder to asynchronously load bytes
-                            return FutureBuilder<Uint8List>(
-                              future: _selectedImages[index].readAsBytes(),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
-                                  return ClipRRect(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                    child: Image.memory(
-                                      snapshot.data!,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  );
-                                } else {
-                                  return const Center(child: CircularProgressIndicator());
-                                }
-                              },
-                            );
-                          } else {
-// On other platforms, use Image.file with the path
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.file(
-                                File(_selectedImages[index].path),
-                                fit: BoxFit.cover,
-                              ),
-                            );
-                          }
-                        },
-                      )
-                          : const Text('No images selected.'),
+                      if (_existingImageUrls.isNotEmpty || _newImages.isNotEmpty)
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          ),
+                          itemCount: _existingImageUrls.length + _newImages.length,
+                          itemBuilder: (context, index) {
+                            if (index < _existingImageUrls.length) {
+                              final imageUrl = _existingImageUrls[index];
+                              return _buildImageWidget(
+                                Image.network(imageUrl, fit: BoxFit.cover),
+                                    () => _removeImage(imageUrl, null),
+                              );
+                            } else {
+                              final newImageIndex = index - _existingImageUrls.length;
+                              final imageXFile = _newImages[newImageIndex];
+                              return _buildImageWidget(
+                                kIsWeb
+                                    ? FutureBuilder<Uint8List>(
+                                  future: imageXFile.readAsBytes(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.done && snapshot.data != null) {
+                                      return Image.memory(snapshot.data!, fit: BoxFit.cover);
+                                    } else {
+                                      return const Center(child: CircularProgressIndicator());
+                                    }
+                                  },
+                                )
+                                    : Image.file(File(imageXFile.path), fit: BoxFit.cover),
+                                    () => _removeImage(null, imageXFile),
+                              );
+                            }
+                          },
+                        )
+                      else
+                        const Text('No images selected.'),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 32),
-// Submit Button
+              // Submit Button
               ElevatedButton(
                 onPressed: _isUploading ? null : _submitForm,
                 child: _isUploading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Post Property'),
+                    : const Text('Update Property'),
               ),
             ],
           ),
@@ -670,4 +650,36 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
       ),
     );
   }
+
+  Widget _buildImageWidget(Widget image, VoidCallback onDelete) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8.0),
+          child: image,
+        ),
+        Positioned(
+          top: 4,
+          right: 4,
+          child: GestureDetector(
+            onTap: onDelete,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              padding: const EdgeInsets.all(4),
+              child: const Icon(
+                Icons.close,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
+

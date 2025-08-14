@@ -1,35 +1,40 @@
-// lib/pages/home/drawer/property_view_card.dart
+// lib/widgets/property_card_view.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:real_estate/theme/custom_colors.dart';
 import 'package:real_estate/models/property.dart';
 import 'package:real_estate/models/property_details.dart';
 import 'package:real_estate/models/city.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:real_estate/models/favourite.dart';
+import 'package:real_estate/providers/auth_provider.dart';
 import 'package:real_estate/pages/property/detailed_property_page.dart';
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-class PropertyCardView extends StatelessWidget {
+class PropertyCardView extends StatefulWidget {
+  final Property property;
+  final String? imageUrl;
+
   const PropertyCardView({
     super.key,
+    required this.property,
+    this.imageUrl,
   });
 
-  // Future to fetch the first property image URL from Firestore.
-  Future<String?> _fetchPropertyImageUrl(String propertyId) async {
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('property_images')
-          .where('property_id', isEqualTo: propertyId)
-          .limit(1)
-          .get(const GetOptions(source: Source.serverAndCache));
+  @override
+  State<PropertyCardView> createState() => _PropertyCardViewState();
+}
 
-      if (snapshot.docs.isNotEmpty) {
-        return snapshot.docs.first.data()['image_url'] as String;
-      }
-      return null;
-    } catch (e) {
-      debugPrint('Error fetching property image URL: $e');
-      return null;
-    }
+class _PropertyCardViewState extends State<PropertyCardView> {
+  // Futures to fetch details and city are still here
+  Future<PropertyDetails?>? _propertyDetailsFuture;
+  Future<City?>? _cityFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _propertyDetailsFuture = _fetchPropertyDetails(widget.property.pDetailsId);
+    _cityFuture = _fetchCity(widget.property.cityId);
   }
 
   // Future to fetch the property details (BHK, bathrooms, etc.)
@@ -68,61 +73,56 @@ class PropertyCardView extends StatelessWidget {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final propertyRef = FirebaseFirestore.instance.collection('properties');
+  // Function to toggle a property as a favorite
+  Future<void> _toggleFavourite(BuildContext context) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.userId;
+    if (userId == null || userId == "guest_user_id") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to shortlist properties.')),
+      );
+      return;
+    }
 
-    // Build the query to fetch all properties
-    Query<Map<String, dynamic>> query = propertyRef.orderBy('created_at', descending: true);
+    try {
+      final favouriteRef = FirebaseFirestore.instance.collection('favourites');
+      final querySnapshot = await favouriteRef
+          .where('user_id', isEqualTo: userId)
+          .where('property_id', isEqualTo: widget.property.propertyId)
+          .limit(1)
+          .get();
 
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: query.snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          // Placeholder card shown while data is loading
-          return ListView(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [_buildPlaceholderCard()],
-          );
-        }
-
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-
-        // Convert to Property objects without any filtering
-        final properties = docs
-            .map((doc) => Property.fromFirestore(doc))
-            .toList();
-
-        if (properties.isEmpty) {
-          // If no properties are found, show the placeholder text
-          return const Center(child: Text('No properties found.'));
-        }
-
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: properties.length,
-          itemBuilder: (context, index) {
-            final property = properties[index];
-            return _buildPropertyCard(context, property);
-          },
+      if (querySnapshot.docs.isNotEmpty) {
+        // Property is already a favorite, so remove it
+        await favouriteRef.doc(querySnapshot.docs.first.id).delete();
+      } else {
+        // Property is not a favorite, so add it
+        final newFavourite = Favourite(
+          favouriteId: '', // Firestore will generate the ID
+          propertyId: widget.property.propertyId,
+          userId: userId,
+          createdAt: DateTime.now(),
         );
-      },
-    );
+        await favouriteRef.add(newFavourite.toFirestore());
+      }
+    } catch (e) {
+      debugPrint('Error toggling favorite: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update shortlist.')),
+      );
+    }
   }
 
-  Widget _buildPropertyCard(BuildContext context, Property property) {
-    return InkWell( // Use InkWell to make the card clickable
+  @override
+  Widget build(BuildContext context) {
+    final userId = Provider.of<AuthProvider>(context).userId;
+
+    return InkWell(
       onTap: () {
         // Navigate to the DetailPropertyPage when the card is tapped
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => DetailPropertyPage(property: property),
+            builder: (context) => DetailedPropertyPage(property: widget.property),
           ),
         );
       },
@@ -133,121 +133,164 @@ class PropertyCardView extends StatelessWidget {
         ),
         margin: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 8.0),
         color: CustomColors.cardColor,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Property Image
-              FutureBuilder<String?>(
-                future: _fetchPropertyImageUrl(property.propertyId),
-                builder: (context, urlSnapshot) {
-                  if (urlSnapshot.connectionState == ConnectionState.waiting) {
-                    return const SizedBox(
-                      height: 200,
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  if (urlSnapshot.hasData && urlSnapshot.data != null) {
-                    return CachedNetworkImage(
-                      imageUrl: urlSnapshot.data!,
-                      height: 200,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Property Image
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: widget.imageUrl != null
+                        ? CachedNetworkImage(
+                      imageUrl: widget.imageUrl!,
+                      width: 120,
+                      height: 120,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => const SizedBox(
-                        height: 200,
+                        width: 120,
+                        height: 120,
                         child: Center(child: CircularProgressIndicator()),
                       ),
                       errorWidget: (context, url, error) => Container(
-                        height: 200,
+                        width: 120,
+                        height: 120,
                         color: Colors.grey,
                         child: const Center(
+                          // Icon for when an image fails to load
                           child: Icon(Icons.image_not_supported, color: Colors.white, size: 50),
                         ),
                       ),
-                    );
-                  } else {
-                    return Container(
-                      height: 200,
+                    )
+                        : Container(
+                      width: 120,
+                      height: 120,
                       color: Colors.grey[300],
                       child: const Center(
+                        // Icon for when there is no image available for the property
                         child: Icon(Icons.apartment, size: 80, color: Colors.grey),
                       ),
-                    );
-                  }
-                },
-              ),
-              // Property Details Section
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title
-                    Text(
-                      property.title,
-                      style: const TextStyle(
-                        fontFamily: 'Montserrat',
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: CustomColors.darkGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Property Details Section
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Title
+                          Text(
+                            widget.property.title,
+                            style: const TextStyle(
+                              fontFamily: 'Montserrat',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: CustomColors.darkGreen,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                          const SizedBox(height: 4),
+                          // Location Address with City
+                          FutureBuilder<City?>(
+                            future: _cityFuture,
+                            builder: (context, snapshot) {
+                              String cityAndAddress = widget.property.locationAddress;
+                              if (snapshot.hasData && snapshot.data != null) {
+                                cityAndAddress = '${widget.property.locationAddress}, ${snapshot.data!.cityName}';
+                              }
+                              return Text(
+                                cityAndAddress,
+                                style: const TextStyle(
+                                  fontFamily: 'Montserrat',
+                                  fontSize: 12,
+                                  color: CustomColors.mutedGreen,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          // Key Property Details (BHK, Bath, Size)
+                          FutureBuilder<PropertyDetails?>(
+                            future: _propertyDetailsFuture,
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData && snapshot.data != null) {
+                                final details = snapshot.data!;
+                                return Row(
+                                  children: [
+                                    _buildDetailIcon(
+                                      icon: Icons.king_bed_rounded,
+                                      label: '${details.bhk}',
+                                      color: CustomColors.mutedGreen,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    _buildDetailIcon(
+                                      icon: Icons.bathtub_rounded,
+                                      label: '${details.bathrooms}',
+                                      color: CustomColors.mutedGreen,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    _buildDetailIcon(
+                                      icon: Icons.crop_square,
+                                      label: '${widget.property.size} sqft',
+                                      color: CustomColors.mutedGreen,
+                                    ),
+                                  ],
+                                );
+                              }
+                              return const SizedBox.shrink(); // Hide if details not available
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          // Price
+                          Text(
+                            '₹${widget.property.price} /mo',
+                            style: TextStyle(
+                              fontFamily: 'Montserrat',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    // Location Address
-                    FutureBuilder<City?>(
-                      future: _fetchCity(property.cityId),
-                      builder: (context, snapshot) {
-                        String cityAndAddress = property.locationAddress;
-                        if (snapshot.hasData && snapshot.data != null) {
-                          cityAndAddress = '${property.locationAddress}, ${snapshot.data!.cityName}';
-                        }
-                        return Text(
-                          cityAndAddress,
-                          style: const TextStyle(
-                            fontFamily: 'Montserrat',
-                            fontSize: 14,
-                            color: CustomColors.mutedGreen,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    // Key Property Details (BHK, Bath, Size)
-                    FutureBuilder<PropertyDetails?>(
-                      future: _fetchPropertyDetails(property.pDetailsId),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasData && snapshot.data != null) {
-                          final details = snapshot.data!;
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildDetailIcon(
-                                icon: Icons.king_bed_rounded,
-                                label: '${details.bhk} BHK',
-                                color: CustomColors.mutedGreen,
-                              ),
-                              _buildDetailIcon(
-                                icon: Icons.bathtub_rounded,
-                                label: '${details.bathrooms} Bath',
-                                color: CustomColors.mutedGreen,
-                              ),
-                              _buildDetailIcon(
-                                icon: Icons.crop_square,
-                                label: '${property.size} sqft',
-                                color: CustomColors.mutedGreen,
-                              ),
-                            ],
-                          );
-                        }
-                        return const SizedBox.shrink(); // Hide if details not available
-                      },
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            // Favorite Button in the corner
+            if (userId != null)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('favourites')
+                      .where('user_id', isEqualTo: userId)
+                      .where('property_id', isEqualTo: widget.property.propertyId)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    final isFavourited = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+                    return IconButton(
+                      icon: Icon(
+                        isFavourited ? Icons.favorite : Icons.favorite_border,
+                        color: isFavourited ? Colors.red : Colors.grey[700],
+                        size: 24,
+                      ),
+                      onPressed: () => _toggleFavourite(context),
+                    );
+                  },
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -255,54 +298,21 @@ class PropertyCardView extends StatelessWidget {
 
   /// Helper widget to build the icon and label for property details.
   Widget _buildDetailIcon({required IconData icon, required String label, required Color color}) {
-    return Expanded(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Montserrat',
-                color: color,
-                fontSize: 12,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Montserrat',
+            color: color,
+            fontSize: 12,
           ),
-        ],
-      ),
-    );
-  }
-
-  // A simple placeholder card to show when no data is available
-  Widget _buildPlaceholderCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
-      margin: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 8.0),
-      color: CustomColors.cardColor,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16.0),
-        child: Container(
-          height: 200,
-          color: Colors.grey[200],
-          child: const Center(
-            child: Text(
-              'Property Here',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-          ),
+          overflow: TextOverflow.ellipsis,
         ),
-      ),
+      ],
     );
   }
 }

@@ -20,6 +20,10 @@ class AuthProvider with ChangeNotifier {
   bool get isRegistering => _isRegistering;
   bool get isLoading => _isLoading;
 
+  // This is the essential getter to provide the current user's ID
+  // It is needed by the favorite and other pages.
+  String? get userId => _currentUser?.userId;
+
   // Function to register a new user with optional agent details.
   Future<void> registerUser({
     required User user,
