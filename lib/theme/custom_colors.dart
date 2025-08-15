@@ -3,37 +3,37 @@ import 'package:flutter/material.dart';
 
 class CustomColors {
   // === Core Palette ===
-  static const Color darkGreen = Color(0xFF043F34); // Deep green
-  static const Color mutedGreen = Color(0xFF71967D); // Slightly faded green
-  static const Color softTeal = Color(0xFFAFCAB8);   // Pastel teal
-  static const Color lightMint = Color(0xFFB6E5D2);  // Bright mint
-  static const Color background = Color(0xFFF8F8F3); // Very light cream
-  static const Color surface = softTeal;
-  static const Color onSurface = darkGreen;
+  static const Color deepBlue = Color(0xFF0D3B66); // Deep navy blue
+  static const Color mutedBlue = Color(0xFF5C80BC); // Muted medium blue
+  static const Color softBlue = Color(0xFFA7C7E7);  // Soft pastel blue
+  static const Color lightSky = Color(0xFFD6EFFF);  // Light sky blue
+  static const Color background = Color(0xFFF5FAFF); // Very light blue-tinted background
+  static const Color surface = softBlue;
+  static const Color onSurface = deepBlue;
 
   // === Text Colors ===
-  static const Color textPrimary = darkGreen;
+  static const Color textPrimary = deepBlue;
   static const Color textSecondary = background;
 
   // === UI Component Colors ===
-  static const Color cardColor = lightMint;
-  static const Color containerColor = softTeal;
-  static const Color buttonHover = mutedGreen;
+  static const Color cardColor = lightSky;
+  static const Color containerColor = softBlue;
+  static const Color buttonHover = mutedBlue;
 
   // === Error & Misc ===
   static const Color error = Colors.redAccent;
   static const Color onError = background;
 
   // === Optional Border/Shadow ===
-  static const Color borderColor = Color(0xFFCBD5C2);
-  static const Color shadowColor = Color(0x33043F34); // 20% opacity darkGreen
+  static const Color borderColor = Color(0xFFB0C4DE); // Light steel blue
+  static const Color shadowColor = Color(0x330D3B66); // 20% opacity deepBlue
 }
 
 ColorScheme customLightColorScheme = const ColorScheme(
   brightness: Brightness.light,
-  primary: CustomColors.darkGreen,
+  primary: CustomColors.deepBlue,
   onPrimary: CustomColors.background,
-  secondary: CustomColors.mutedGreen,
+  secondary: CustomColors.mutedBlue,
   onSecondary: CustomColors.background,
   error: CustomColors.error,
   onError: CustomColors.onError,
@@ -45,14 +45,14 @@ ColorScheme customLightColorScheme = const ColorScheme(
 
 ColorScheme customDarkColorScheme = const ColorScheme(
   brightness: Brightness.dark,
-  primary: CustomColors.lightMint,
+  primary: CustomColors.lightSky,
   onPrimary: CustomColors.background,
-  secondary: CustomColors.softTeal,
+  secondary: CustomColors.softBlue,
   onSecondary: CustomColors.background,
   error: CustomColors.error,
   onError: CustomColors.onError,
-  background: CustomColors.mutedGreen,
+  background: CustomColors.mutedBlue,
   onBackground: CustomColors.background,
-  surface: CustomColors.softTeal,
+  surface: CustomColors.softBlue,
   onSurface: CustomColors.background,
 );

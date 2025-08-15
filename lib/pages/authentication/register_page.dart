@@ -1,21 +1,19 @@
-// lib/pages/authentication/register_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/enums.dart';
 import '../../models/user.dart';
-import '../../models/city.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/city_provider.dart';
+import '../../widgets/city_dropdown.dart'; // ✅ New import
 
-// Extension to capitalize enum names for display
 extension StringExtension on String {
   String toCapitalizedString() {
-    if (this.isEmpty) {
+    if (isEmpty) {
       return '';
     }
-    return '${this[0].toUpperCase()}${this.substring(1)}';
+    return '${this[0].toUpperCase()}${substring(1)}';
   }
 }
 
@@ -40,7 +38,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   bool _whatsappSameAsPhone = true;
   String? _selectedCity;
-  UserRole _selectedUserRole = UserRole.buyer; // Default to Buyer
+  UserRole _selectedUserRole = UserRole.buyer;
 
   @override
   void initState() {
@@ -62,66 +60,6 @@ class _RegisterPageState extends State<RegisterPage> {
     _licenseNumberController.dispose();
     _agencyNameController.dispose();
     super.dispose();
-  }
-
-  Future<void> _handleCitySelection(BuildContext context, String? value) async {
-    if (value == 'list_new_city') {
-      final newCityName = await showDialog<String>(
-        context: context,
-        builder: (BuildContext dialogContext) {
-          final newCityController = TextEditingController();
-          return AlertDialog(
-            backgroundColor: Theme.of(dialogContext).colorScheme.surface,
-            title: Text(
-              'List Your City',
-              style: TextStyle(color: Theme.of(dialogContext).colorScheme.onSurface),
-            ),
-            content: TextField(
-              controller: newCityController,
-              decoration: InputDecoration(
-                hintText: "Enter new city name",
-                hintStyle: TextStyle(
-                  color: Theme.of(dialogContext).colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ),
-              style: TextStyle(color: Theme.of(dialogContext).colorScheme.onSurface),
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                },
-                child: Text('Cancel',
-                    style: TextStyle(color: Theme.of(dialogContext).colorScheme.primary)),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop(newCityController.text);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(dialogContext).colorScheme.primary,
-                ),
-                child: const Text('Add City'),
-              ),
-            ],
-          );
-        },
-      );
-
-      if (newCityName != null && newCityName.isNotEmpty) {
-        final cityProvider = Provider.of<CityProvider>(context, listen: false);
-        final newCity = await cityProvider.addCity(newCityName);
-        if (newCity != null) {
-          setState(() {
-            _selectedCity = newCity.cityId;
-          });
-        }
-      }
-    } else {
-      setState(() {
-        _selectedCity = value;
-      });
-    }
   }
 
   Future<void> _register() async {
@@ -215,7 +153,6 @@ class _RegisterPageState extends State<RegisterPage> {
                     : null,
               ),
               const SizedBox(height: 16),
-              // User Role Dropdown
               DropdownButtonFormField<UserRole>(
                 value: _selectedUserRole,
                 decoration: const InputDecoration(hintText: 'You are?'),
@@ -234,7 +171,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 value == null ? 'Please select your role' : null,
               ),
               const SizedBox(height: 16),
-              // Conditional Agent fields
               if (_selectedUserRole == UserRole.agent) ...[
                 TextFormField(
                   controller: _licenseNumberController,
@@ -289,43 +225,17 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ],
               const SizedBox(height: 16),
-              Consumer<CityProvider>(
-                builder: (context, cityProvider, child) {
-                  if (cityProvider.isLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
 
-                  final cities = cityProvider.cities;
-                  return DropdownButtonFormField<String>(
-                    value: _selectedCity,
-                    decoration: const InputDecoration(hintText: 'City'),
-                    hint: const Text('Select a city'),
-                    items: [
-                      DropdownMenuItem<String>(
-                        value: 'list_new_city',
-                        child: Text(
-                          'List Your City',
-                          style: TextStyle(
-                            fontStyle: FontStyle.italic,
-                            color: colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      ...cities.map((city) {
-                        return DropdownMenuItem<String>(
-                          value: city.cityId,
-                          child: Text(city.cityName),
-                        );
-                      }).toList(),
-                    ],
-                    onChanged: (value) async {
-                      await _handleCitySelection(context, value);
-                    },
-                    validator: (value) =>
-                    value == null ? 'Please select a city' : null,
-                  );
+              // ✅ City dropdown widget
+              CityDropdown(
+                selectedCity: _selectedCity,
+                onCitySelected: (value) {
+                  setState(() {
+                    _selectedCity = value;
+                  });
                 },
               ),
+
               const SizedBox(height: 16),
               TextFormField(
                 controller: _addressController,

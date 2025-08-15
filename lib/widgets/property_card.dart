@@ -1,4 +1,4 @@
-// lib/widgets/property_card_view.dart
+// lib/widgets/property_card.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:real_estate/theme/custom_colors.dart';
@@ -11,21 +11,21 @@ import 'package:real_estate/pages/property/detailed_property_page.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-class PropertyCardView extends StatefulWidget {
+class PropertyCard extends StatefulWidget {
   final Property property;
   final String? imageUrl;
 
-  const PropertyCardView({
+  const PropertyCard({
     super.key,
     required this.property,
     this.imageUrl,
   });
 
   @override
-  State<PropertyCardView> createState() => _PropertyCardViewState();
+  State<PropertyCard> createState() => _PropertyCardState();
 }
 
-class _PropertyCardViewState extends State<PropertyCardView> {
+class _PropertyCardState extends State<PropertyCard> {
   // Futures to fetch details and city are still here
   Future<PropertyDetails?>? _propertyDetailsFuture;
   Future<City?>? _cityFuture;
@@ -251,7 +251,7 @@ class _PropertyCardViewState extends State<PropertyCardView> {
                           const SizedBox(height: 8),
                           // Price
                           Text(
-                            '₹${widget.property.price} /mo',
+                            '₹${widget.property.price}',
                             style: TextStyle(
                               fontFamily: 'Montserrat',
                               fontSize: 16,

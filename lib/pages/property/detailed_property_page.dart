@@ -263,13 +263,13 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
                     'About This Property',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: CustomColors.darkGreen,
+                      color: CustomColors.deepBlue,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     widget.property.description ?? 'No description provided.',
-                    style: const TextStyle(fontSize: 16, color: CustomColors.mutedGreen),
+                    style: const TextStyle(fontSize: 16, color: CustomColors.mutedBlue),
                   ),
 
                   const SizedBox(height: 24),
@@ -452,7 +452,7 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
         Text(
           'Price',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: CustomColors.mutedGreen,
+            color: CustomColors.mutedBlue,
           ),
         ),
         Text(
@@ -467,7 +467,7 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
           '₹$pricePerSqft per sqft',
           style: const TextStyle(
             fontSize: 14,
-            color: CustomColors.mutedGreen,
+            color: CustomColors.mutedBlue,
           ),
         ),
       ],
@@ -524,7 +524,7 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
               'Amenities',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: CustomColors.darkGreen,
+                color: CustomColors.deepBlue,
               ),
             ),
             const SizedBox(height: 8),
@@ -535,7 +535,7 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
                 return Chip(
                   label: Text(amenity.amenityName),
                   backgroundColor: CustomColors.cardColor,
-                  side: const BorderSide(color: CustomColors.mutedGreen),
+                  side: const BorderSide(color: CustomColors.mutedBlue),
                 );
               }).toList(),
             ),
@@ -548,7 +548,14 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
   /// Helper widget to build the Construction Status chip.
   Widget _buildConstructionStatusChip() {
     final constructionStatus = widget.property.constructionStatus;
-    String label = constructionStatus.toCapitalizedString();
+    String label = '';
+
+    if (constructionStatus != null){
+      label = 'Status: ';
+    };
+
+    label = '$label ${constructionStatus.toCapitalizedString()}';
+
 
     if (constructionStatus == ConstructionStatus.underConstruction && widget.property.readyBy != null) {
       label = '$label (Ready by: ${widget.property.readyBy})';
@@ -557,12 +564,12 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
     return Chip(
       label: Text(
         label,
-        style: const TextStyle(color: CustomColors.darkGreen),
+        style: const TextStyle(color: CustomColors.deepBlue),
       ),
       backgroundColor: CustomColors.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: CustomColors.mutedGreen),
+        side: const BorderSide(color: CustomColors.mutedBlue),
       ),
     );
   }
@@ -574,13 +581,13 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
       children: [
         CircleAvatar(
           backgroundColor: CustomColors.background,
-          child: Icon(icon, color: CustomColors.darkGreen, size: 24),
+          child: Icon(icon, color: CustomColors.deepBlue, size: 24),
         ),
         const SizedBox(height: 4),
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: CustomColors.mutedGreen,
+            color: CustomColors.mutedBlue,
           ),
         ),
       ],

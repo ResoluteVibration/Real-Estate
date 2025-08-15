@@ -261,12 +261,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 controller: _emailController,
                 decoration: const InputDecoration(hintText: 'Email'),
                 keyboardType: TextInputType.emailAddress,
-                enabled: false, // Email should be read-only
+                enabled: false, // Email is read-only
                 style: textTheme.bodyMedium!.copyWith(color: colorScheme.onBackground.withOpacity(0.5)),
               ),
               const SizedBox(height: 16),
               // User Role Dropdown
               DropdownButtonFormField<UserRole>(
+                menuMaxHeight: 100,
                 value: _selectedUserRole,
                 decoration: const InputDecoration(hintText: 'You are?'),
                 style: textTheme.bodyMedium!.copyWith(color: colorScheme.onBackground),

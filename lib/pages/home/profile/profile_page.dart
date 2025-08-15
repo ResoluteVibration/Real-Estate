@@ -5,7 +5,7 @@ import 'package:real_estate/providers/auth_provider.dart';
 import 'package:real_estate/pages/home/drawer/post_property_page.dart';
 import 'package:real_estate/pages/home/profile/edit_profile_page.dart'; // Import the new page
 import 'package:real_estate/widgets/handlePostPropertyAction.dart';
-
+import 'package:real_estate/pages/home/drawer/favourite_page.dart';
 import '../drawer/listings_page.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -188,8 +188,9 @@ class ProfilePage extends StatelessWidget {
             icon: Icons.star,
             title: 'Shortlisted/Favourite Properties',
             onTap: () {
-              // TODO: Implement navigation to Shortlisted Properties page
-              _showInfoDialog(context, 'Favourites', 'This feature is coming soon!');
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => const FavouritePage())
+              );
             },
           ),
           _buildProfileOption(

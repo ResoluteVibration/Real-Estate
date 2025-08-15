@@ -1,18 +1,17 @@
-// lib/pages/home/home_page.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:real_estate/pages/home/drawer/post_property_page.dart';
 import 'package:real_estate/providers/auth_provider.dart';
 import 'package:real_estate/utils/database_seeder.dart';
-import 'package:real_estate/widgets/property_card_view.dart';
+import 'package:real_estate/widgets/property_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:real_estate/theme/custom_colors.dart';
-import 'package:real_estate/models/city.dart';
 import 'package:real_estate/pages/home/profile/profile_page.dart';
 import 'package:real_estate/models/enums.dart';
 import 'package:real_estate/widgets/handlePostPropertyAction.dart';
 import 'package:real_estate/models/property_with_images.dart';
 import 'package:real_estate/models/property.dart';
+import '../../providers/city_provider.dart';
 import 'drawer/listings_page.dart';
 import 'drawer/favourite_page.dart';
 
@@ -23,78 +22,81 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  late AnimationController _animationController;
-  late Animation<double> _animation;
 
   String _selectedDrawerItem = 'Home Page';
   final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  Timer? _debounce;
 
-  // Filter state
-  double _minPrice = 0;
-  double _maxPrice = 5000000;
-  double _currentPrice = 5000000;
-  PropertyType? _selectedType; // Changed to use PropertyType enum
-  String? _selectedCityId;
-  final Set<String> _selectedAmenities = {};
-  List<String> _allAmenities = [];
-  List<City> _allCities = [];
+  // For mapping cityId → cityName
+  final Map<String, String> _cityIdToName = {};
 
-  Future<void> _fetchFilterData() async {
-    try {
-      final amenitiesSnapshot = await FirebaseFirestore.instance.collection('amenities').get();
-      final citiesSnapshot = await FirebaseFirestore.instance.collection('cities').get();
-      if (mounted) {
-        setState(() {
-          _allAmenities = amenitiesSnapshot.docs
-              .map((doc) => doc['amenity_name'] as String)
-              .toList();
-          _allCities = citiesSnapshot.docs
-              .map((doc) => City.fromFirestore(doc))
-              .toList();
-        });
-      }
-    } catch (e) {
-      debugPrint('Failed to fetch filter data: $e');
-    }
-  }
-
+  @override
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
-    _fetchFilterData();
+    _searchController.addListener(_onSearchChanged);
+
+    // Load city names from provider once available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final cityProvider = Provider.of<CityProvider>(context, listen: false);
+      if (cityProvider.cities.isEmpty) {
+        cityProvider.fetchCities().then((_) {
+          _populateCityMap(cityProvider);
+        });
+      } else {
+        _populateCityMap(cityProvider);
+      }
+    });
+  }
+
+  void _populateCityMap(CityProvider cityProvider) {
+    _cityIdToName.clear();
+    for (var city in cityProvider.cities) {
+      _cityIdToName[city.cityId] = city.cityName.toLowerCase();
+    }
+    setState(() {}); // Refresh UI with city names
+  }
+
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      setState(() {
+        _searchQuery = _searchController.text.trim().toLowerCase();
+      });
+    });
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
   void _selectDrawerItem(String item) {
-    Navigator.pop(context); // Close the drawer
-    if (mounted) {
-      setState(() {
-        _selectedDrawerItem = item;
-      });
-    }
+    Navigator.pop(context);
+    setState(() => _selectedDrawerItem = item);
 
-    // Now handle navigation for specific pages. For simpler cases,
-    // we just change the state and the main body rebuilds.
     switch (item) {
+      case 'Shortlisted/Favourite Properties':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const FavouritePage()));
+        break;
       case 'Post New Property':
         handlePostPropertyAction(context);
         break;
+      case 'My Listings':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const ListingsPage()));
+        break;
       case 'Log Out':
         Provider.of<AuthProvider>(context, listen: false).logout();
-        Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(
+            context, '/welcome', (route) => false);
         break;
       case 'Populate Amenities':
         DatabaseSeeder.seedDatabase(context);
@@ -126,136 +128,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  void _openFilterDrawer() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: MediaQuery.of(context).viewInsets,
-          child: StatefulBuilder(
-            builder: (context, setModalState) {
-              return Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('Filter Properties', style: Theme.of(context).textTheme.titleLarge),
-                      const SizedBox(height: 24),
-
-                      // Price Slider
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Max Price: ₹${_currentPrice.toInt()}'),
-                          Slider(
-                            value: _currentPrice,
-                            min: _minPrice,
-                            max: _maxPrice,
-                            divisions: 100,
-                            label: _currentPrice.toStringAsFixed(0),
-                            onChanged: (value) {
-                              setModalState(() => _currentPrice = value);
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Property Type
-                      Wrap(
-                        spacing: 8,
-                        children: PropertyType.values.map((type) {
-                          final selected = _selectedType == type;
-                          return ChoiceChip(
-                            label: Text(type.toCapitalizedString()),
-                            selected: selected,
-                            onSelected: (val) {
-                              setModalState(() {
-                                _selectedType = val ? type : null;
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // City Dropdown
-                      InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'City',
-                          border: OutlineInputBorder(),
-                        ),
-                        isEmpty: _selectedCityId == null,
-                        child: DropdownButton<String>(
-                          value: _selectedCityId,
-                          isExpanded: true,
-                          underline: const SizedBox(),
-                          menuMaxHeight: 200.0,
-                          items: _allCities.map((city) {
-                            return DropdownMenuItem<String>(
-                              value: city.cityId,
-                              child: Text(city.cityName),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setModalState(() {
-                              _selectedCityId = value;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Amenities
-                      Wrap(
-                        spacing: 8.0,
-                        runSpacing: 4.0,
-                        children: _allAmenities.map((amenity) {
-                          final selected = _selectedAmenities.contains(amenity);
-                          return FilterChip(
-                            label: Text(amenity),
-                            selected: selected,
-                            onSelected: (val) {
-                              setModalState(() {
-                                if (val) {
-                                  _selectedAmenities.add(amenity);
-                                } else {
-                                  _selectedAmenities.remove(amenity);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.check),
-                        label: const Text('Find with Filters'),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          if (mounted) {
-                            setState(() {});
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  // A helper widget to build the home page's main content
   Widget _buildHomePageContent() {
     return Column(
       children: [
@@ -269,11 +141,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               hintText: 'Search properties...',
               prefixIcon: Icon(Icons.search,
                   color: Theme.of(context).colorScheme.onSurface),
-              suffixIcon: IconButton(
-                icon: Icon(Icons.filter_list,
-                    color: Theme.of(context).colorScheme.onSurface),
-                onPressed: _openFilterDrawer,
-              ),
               border: InputBorder.none,
               contentPadding:
               const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
@@ -293,10 +160,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         const SizedBox(height: 16),
         Expanded(
           child: StreamBuilder<QuerySnapshot<Property>>(
-            stream: FirebaseFirestore.instance.collection('properties').withConverter<Property>(
-              fromFirestore: (snapshot, options) => Property.fromFirestore(snapshot),
+            stream: FirebaseFirestore.instance
+                .collection('properties')
+                .withConverter<Property>(
+              fromFirestore: (snapshot, options) =>
+                  Property.fromFirestore(snapshot),
               toFirestore: (property, options) => property.toFirestore(),
-            ).snapshots(),
+            )
+                .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -310,44 +181,61 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
               final propertyDocs = snapshot.data!.docs;
 
-              // Use a FutureBuilder to fetch images for all properties before building the list
-              return FutureBuilder<List<PropertyWithImages>>(
-                future: Future.wait(
-                  propertyDocs.map((doc) async {
-                    final property = doc.data();
-                    final imageSnapshot = await FirebaseFirestore.instance
-                        .collection('property_images')
-                        .where('property_id', isEqualTo: property.propertyId)
-                        .limit(1)
-                        .get(const GetOptions(source: Source.serverAndCache));
+              final filteredDocs = propertyDocs.where((doc) {
+                final property = doc.data();
+                final cityName = _cityIdToName[property.cityId] ?? '';
+                if (_searchQuery.isEmpty) return true;
+                return property.title.toLowerCase().contains(_searchQuery) ||
+                    (property.description?.toLowerCase() ?? '')
+                        .contains(_searchQuery) ||
+                    property.locationAddress
+                        .toLowerCase()
+                        .contains(_searchQuery) ||
+                    cityName.contains(_searchQuery);
+              }).toList();
 
-                    String? imageUrl;
-                    if (imageSnapshot.docs.isNotEmpty) {
-                      imageUrl = imageSnapshot.docs.first['image_url'] as String;
-                    }
-                    return PropertyWithImages(property: property, imageUrl: imageUrl);
-                  }),
-                ),
+              return FutureBuilder<List<PropertyWithImages>>(
+                future: Future.wait(filteredDocs.map((doc) async {
+                  final property = doc.data();
+                  final imageSnapshot = await FirebaseFirestore.instance
+                      .collection('property_images')
+                      .where('property_id', isEqualTo: property.propertyId)
+                      .get(const GetOptions(source: Source.serverAndCache));
+
+                  final imageUrls = imageSnapshot.docs
+                      .map((imgDoc) => imgDoc['image_url'] as String)
+                      .toList();
+
+                  return PropertyWithImages(
+                    property: property,
+                    images: imageUrls,
+                  );
+                })),
                 builder: (context, futureSnapshot) {
-                  if (futureSnapshot.connectionState == ConnectionState.waiting) {
+                  if (futureSnapshot.connectionState ==
+                      ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (futureSnapshot.hasError) {
-                    return Center(child: Text('Error fetching images: ${futureSnapshot.error}'));
+                    return Center(
+                        child: Text(
+                            'Error fetching images: ${futureSnapshot.error}'));
                   }
                   if (!futureSnapshot.hasData || futureSnapshot.data!.isEmpty) {
-                    return const Center(child: Text('No properties available.'));
+                    return const Center(child: Text('No Property Matches the Search'));
                   }
 
-                  final propertiesWithImages = futureSnapshot.data!;
 
+                  final propertiesWithImages = futureSnapshot.data!;
                   return ListView.builder(
                     itemCount: propertiesWithImages.length,
                     itemBuilder: (context, index) {
                       final item = propertiesWithImages[index];
-                      return PropertyCardView(
+                      return PropertyCard(
                         property: item.property,
-                        imageUrl: item.imageUrl,
+                        imageUrl: item.images.isNotEmpty
+                            ? item.images.first
+                            : null,
                       );
                     },
                   );
@@ -366,21 +254,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final user = authProvider.currentUser;
     final isGuest = user?.userId == 'guest_user_id';
 
-    // The body content changes based on the selected drawer item
-    Widget currentBody;
-    switch (_selectedDrawerItem) {
-      case 'Shortlisted/Favourite Properties':
-        currentBody = const FavouritePage();
-        break;
-      case 'My Listings':
-        currentBody = const ListingsPage();
-        break;
-      case 'Home Page':
-      default:
-        currentBody = _buildHomePageContent();
-        break;
-    }
-
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Theme.of(context).colorScheme.background,
@@ -395,7 +268,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
         ),
         leading: IconButton(
-          icon: Icon(Icons.account_circle, color: Theme.of(context).colorScheme.onSecondary),
+          icon: Icon(Icons.account_circle,
+              color: Theme.of(context).colorScheme.onSecondary),
           onPressed: () {
             Navigator.push(
               context,
@@ -405,7 +279,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.menu, color: Theme.of(context).colorScheme.onSecondary),
+            icon: Icon(Icons.menu,
+                color: Theme.of(context).colorScheme.onSecondary),
             onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
           ),
         ],
@@ -424,15 +299,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Welcome',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onSecondary)),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSecondary)),
                     Text('Guest Profile',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSecondary)),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSecondary)),
                     const SizedBox(height: 16.0),
                     ElevatedButton(
-                      onPressed: () => Navigator.of(context)
-                          .pushNamedAndRemoveUntil('/welcome', (route) => false),
+                      onPressed: () =>
+                          Navigator.of(context).pushNamedAndRemoveUntil(
+                              '/welcome', (route) => false),
                       child: const Text('Login/Register Now'),
                     ),
                   ],
@@ -441,18 +327,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   : UserAccountsDrawerHeader(
                 decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.secondary),
-                accountName: Text('${user?.firstName} ${user?.lastName}',
+                accountName: Text(
+                    '${user?.firstName} ${user?.lastName}',
                     style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSecondary)),
+                        color:
+                        Theme.of(context).colorScheme.onSecondary)),
                 accountEmail: Text(user?.email ?? '',
                     style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSecondary)),
+                        color:
+                        Theme.of(context).colorScheme.onSecondary)),
                 currentAccountPicture: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  backgroundColor:
+                  Theme.of(context).colorScheme.primary,
                   child: Text(
                     user?.firstName[0] ?? 'U',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onPrimary,
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(
+                      color:
+                      Theme.of(context).colorScheme.onPrimary,
                     ),
                   ),
                 ),
@@ -461,40 +355,37 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               buildDrawerItem(icon: Icons.search, title: 'Search Properties'),
               if (!isGuest) ...[
                 const Divider(),
-                buildDrawerItem(icon: Icons.star_border, title: 'Shortlisted/Favourite Properties'),
-                buildDrawerItem(icon: Icons.contact_phone_outlined, title: 'Contacted Properties'),
+                buildDrawerItem(
+                    icon: Icons.star_border,
+                    title: 'Shortlisted/Favourite Properties'),
+                buildDrawerItem(
+                    icon: Icons.contact_phone_outlined,
+                    title: 'Contacted Properties'),
                 const Divider(),
-                buildDrawerItem(icon: Icons.post_add, title: 'Post New Property'),
-                if (user?.userRole == UserRole.agent || user?.userRole == UserRole.owner) ...[
-                  buildDrawerItem(icon: Icons.visibility_outlined, title: 'View Responses'),
+                buildDrawerItem(
+                    icon: Icons.post_add, title: 'Post New Property'),
+                if (user?.userRole == UserRole.agent ||
+                    user?.userRole == UserRole.owner) ...[
+                  buildDrawerItem(
+                      icon: Icons.visibility_outlined, title: 'View Responses'),
                   buildDrawerItem(icon: Icons.edit_note, title: 'My Listings'),
                 ]
               ],
-              const Divider(),
-              buildDrawerItem(icon: Icons.apartment, title: 'Residential Properties'),
-              buildDrawerItem(icon: Icons.business, title: 'Commercial Properties'),
               if (!isGuest) ...[
                 const Divider(),
-                buildDrawerItem(icon: Icons.cloud_upload_outlined, title: 'Populate Amenities'),
+                buildDrawerItem(
+                    icon: Icons.cloud_upload_outlined,
+                    title: 'Populate Amenities'),
                 buildDrawerItem(icon: Icons.logout, title: 'Log Out'),
               ],
-
             ],
           ),
         ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: currentBody,
+        child: _buildHomePageContent(),
       ),
     );
   }
-}
-
-// A new data model to combine Property and imageUrl
-class PropertyWithImages {
-  final Property property;
-  final String? imageUrl;
-
-  PropertyWithImages({required this.property, this.imageUrl});
 }

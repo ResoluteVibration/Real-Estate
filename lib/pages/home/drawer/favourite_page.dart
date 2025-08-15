@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:real_estate/models/property.dart';
 import 'package:real_estate/models/favourite.dart'; // Using your Favourite model
 import 'package:real_estate/providers/auth_provider.dart';
-import 'package:real_estate/widgets/property_card_view.dart';
+import 'package:real_estate/widgets/property_card.dart';
 import 'package:real_estate/models/property_with_images.dart';
 
 class FavouritePage extends StatefulWidget {
@@ -115,7 +115,7 @@ class _FavouritePageState extends State<FavouritePage> {
               final imageUrl = listing.images.isNotEmpty ? listing.images[0] : null;
 
               // This is where we reuse the existing PropertyCardView widget
-              return PropertyCardView(
+              return PropertyCard(
                 property: listing.property,
               );
             },

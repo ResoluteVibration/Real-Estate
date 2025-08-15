@@ -74,13 +74,13 @@ class MyApp extends StatelessWidget {
           ),
           hintStyle: TextStyle(color: CustomColors.textSecondary.withOpacity(0.7)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          labelStyle: TextStyle(color: CustomColors.textPrimary),
+          labelStyle: const TextStyle(color: CustomColors.textPrimary),
         ),
 
         // ✅ Buttons
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: CustomColors.darkGreen,
+            backgroundColor: CustomColors.deepBlue, // was darkGreen
             foregroundColor: CustomColors.background,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12.0),

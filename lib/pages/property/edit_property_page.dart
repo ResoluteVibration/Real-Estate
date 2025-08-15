@@ -15,6 +15,9 @@ import '../../../models/city.dart';
 import '../../../models/property_with_images.dart';
 import '../../../providers/property_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../widgets/city_dropdown.dart'; // ✅ New import
+import '../../../providers/city_provider.dart'; // ✅ New import
+
 
 class EditPropertyPage extends StatefulWidget {
   final PropertyWithImages propertyWithImages;
@@ -41,7 +44,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
   List<PropertyDetails> _allPropertyDetails = [];
   String? _selectedPropertyDetailsId;
   // For Cities
-  List<City> _allCities = [];
+  // List<City> _allCities = []; // ❌ Removed
   String? _selectedCityId;
   // For Amenities
   List<Amenity> _allAmenities = [];
@@ -54,7 +57,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
   bool _isUploading = false;
   // State variables for manual dropdown validation errors
   bool _propertyTypeHasError = false;
-  bool _cityHasError = false;
+  // bool _cityHasError = false; // ❌ Removed
   bool _pDetailsHasError = false;
   bool _constructionStatusHasError = false;
   bool _furnishingHasError = false;
@@ -64,6 +67,9 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
     super.initState();
     _fetchDropdownData();
     _initializeFormFields();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<CityProvider>(context, listen: false).fetchCities();
+    });
   }
 
   void _initializeFormFields() {
@@ -99,7 +105,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
     try {
       final detailsSnapshot = await _firestore.collection('property_details').get();
       final amenitiesSnapshot = await _firestore.collection('amenities').get();
-      final citiesSnapshot = await _firestore.collection('cities').get();
+      // final citiesSnapshot = await _firestore.collection('cities').get(); // ❌ Removed
       if (mounted) {
         setState(() {
           _allPropertyDetails = detailsSnapshot.docs
@@ -108,9 +114,9 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
           _allAmenities = amenitiesSnapshot.docs
               .map((doc) => Amenity.fromFirestore(doc))
               .toList();
-          _allCities = citiesSnapshot.docs
-              .map((doc) => City.fromFirestore(doc))
-              .toList();
+          // _allCities = citiesSnapshot.docs // ❌ Removed
+          //     .map((doc) => City.fromFirestore(doc))
+          //     .toList();
         });
       }
     } catch (e) {
@@ -179,7 +185,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
   Future<void> _submitForm() async {
     setState(() {
       _propertyTypeHasError = _selectedPropertyType == null;
-      _cityHasError = _selectedCityId == null;
+      // _cityHasError = _selectedCityId == null; // ❌ Removed
       _pDetailsHasError = _selectedPropertyDetailsId == null;
       _constructionStatusHasError = _selectedConstructionStatus == null;
       _furnishingHasError = _selectedFurnishingStatus == null;
@@ -187,7 +193,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
 
     if (_formKey.currentState?.validate() ?? false &&
         !_propertyTypeHasError &&
-        !_cityHasError &&
+        // !_cityHasError && // ❌ Removed
         !_pDetailsHasError &&
         !_constructionStatusHasError &&
         !_furnishingHasError) {
@@ -314,6 +320,16 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                 },
               ),
               const SizedBox(height: 16),
+              // ✅ City Dropdown - REPLACED
+              CityDropdown(
+                selectedCity: _selectedCityId,
+                onCitySelected: (value) {
+                  setState(() {
+                    _selectedCityId = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
               // Property Type Dropdown
               InputDecorator(
                 decoration: InputDecoration(
@@ -337,34 +353,6 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                     setState(() {
                       _selectedPropertyType = value;
                       if (value != null) _propertyTypeHasError = false;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              // City Dropdown
-              InputDecorator(
-                decoration: InputDecoration(
-                  labelText: 'City',
-                  border: const OutlineInputBorder(),
-                  errorText: _cityHasError ? 'Please select a city' : null,
-                ),
-                isEmpty: _selectedCityId == null,
-                child: DropdownButton<String>(
-                  value: _selectedCityId,
-                  isExpanded: true,
-                  underline: const SizedBox(),
-                  menuMaxHeight: 200.0,
-                  items: _allCities.map((city) {
-                    return DropdownMenuItem<String>(
-                      value: city.cityId,
-                      child: Text(city.cityName),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedCityId = value;
-                      if (value != null) _cityHasError = false;
                     });
                   },
                 ),
@@ -682,4 +670,3 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
     );
   }
 }
-

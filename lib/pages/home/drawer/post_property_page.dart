@@ -13,13 +13,15 @@ import '../../../models/amenity.dart';
 import '../../../models/property_details.dart';
 import '../../../models/city.dart';
 import '../../../providers/auth_provider.dart';
-
+import '../../../widgets/city_dropdown.dart';
+import '../../../providers/city_provider.dart'; // ✅ New import
 
 class PostPropertyPage extends StatefulWidget {
   const PostPropertyPage({super.key});
   @override
   State<PostPropertyPage> createState() => _PostPropertyPageState();
 }
+
 class _PostPropertyPageState extends State<PostPropertyPage> {
   final _formKey = GlobalKey<FormState>();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -39,7 +41,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
   List<PropertyDetails> _allPropertyDetails = [];
   String? _selectedPropertyDetailsId;
 // For Cities
-  List<City> _allCities = [];
+  // List<City> _allCities = []; // ❌ Removed
   String? _selectedCityId;
 // For Amenities
   List<Amenity> _allAmenities = [];
@@ -50,7 +52,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
   bool _isUploading = false;
 // State variables for manual dropdown validation errors
   bool _propertyTypeHasError = false;
-  bool _cityHasError = false;
+  // bool _cityHasError = false; // ❌ Removed
   bool _pDetailsHasError = false;
   bool _constructionStatusHasError = false;
   bool _furnishingHasError = false;
@@ -58,13 +60,16 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
   void initState() {
     super.initState();
     _fetchDropdownData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<CityProvider>(context, listen: false).fetchCities();
+    });
   }
 // Fetch predefined data for dropdowns
   Future<void> _fetchDropdownData() async {
     try {
       final detailsSnapshot = await _firestore.collection('property_details').get();
       final amenitiesSnapshot = await _firestore.collection('amenities').get();
-      final citiesSnapshot = await _firestore.collection('cities').get();
+      // final citiesSnapshot = await _firestore.collection('cities').get(); // ❌ Removed
       setState(() {
         _allPropertyDetails = detailsSnapshot.docs
             .map((doc) => PropertyDetails.fromFirestore(doc))
@@ -72,9 +77,9 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
         _allAmenities = amenitiesSnapshot.docs
             .map((doc) => Amenity.fromFirestore(doc))
             .toList();
-        _allCities = citiesSnapshot.docs
-            .map((doc) => City.fromFirestore(doc))
-            .toList();
+        // _allCities = citiesSnapshot.docs // ❌ Removed
+        //     .map((doc) => City.fromFirestore(doc))
+        //     .toList();
       });
     } catch (e) {
       Fluttertoast.showToast(msg: 'Failed to fetch dropdown data: $e');
@@ -119,7 +124,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
       _selectedImages.clear();
       _isUploading = false;
       _propertyTypeHasError = false;
-      _cityHasError = false;
+      // _cityHasError = false; // ❌ Removed
       _pDetailsHasError = false;
       _constructionStatusHasError = false;
       _furnishingHasError = false;
@@ -133,7 +138,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Property Posted'),
-          content: const Text('Your property has been successfully listed!'),
+          content: const Text('Property Listed'),
           actions: [
             TextButton(
               child: const Text('Add More'),
@@ -159,14 +164,14 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
 // Manually validate dropdowns before the form
     setState(() {
       _propertyTypeHasError = _selectedPropertyType == null;
-      _cityHasError = _selectedCityId == null;
+      // _cityHasError = _selectedCityId == null; // ❌ Removed
       _pDetailsHasError = _selectedPropertyDetailsId == null;
       _constructionStatusHasError = _selectedConstructionStatus == null;
       _furnishingHasError = _selectedFurnishingStatus == null;
     });
     if (_formKey.currentState?.validate() ?? false &&
         !_propertyTypeHasError &&
-        !_cityHasError &&
+        // !_cityHasError && // ❌ Removed
         !_pDetailsHasError &&
         !_constructionStatusHasError &&
         !_furnishingHasError) {
@@ -176,7 +181,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
       });
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final ownerId = authProvider.currentUser?.userId;
-      if (ownerId == null||ownerId == "guest_user_id") {
+      if (ownerId == null || ownerId == "guest_user_id") {
         Fluttertoast.showToast(msg: 'Please log in to post a property.');
         setState(() {
           _isUploading = false;
@@ -310,7 +315,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                 controller: _descriptionController,
                 decoration: const InputDecoration(
                   labelText: 'Description (Optional)',
-                  hintText: 'e.g., A detailed description of the property highlights the property...',
+                  hintText: 'Descriptions beautiful always highlights the property',
                 ),
               ),
               const SizedBox(height: 16),
@@ -326,6 +331,16 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                     return 'Please enter the location address';
                   }
                   return null;
+                },
+              ),
+              const SizedBox(height: 16),
+// City Dropdown - ✅ REPLACED
+              CityDropdown(
+                selectedCity: _selectedCityId,
+                onCitySelected: (value) {
+                  setState(() {
+                    _selectedCityId = value;
+                  });
                 },
               ),
               const SizedBox(height: 16),
@@ -357,34 +372,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                   },
                 ),
               ),
-              const SizedBox(height: 16),
-// City Dropdown
-              InputDecorator(
-                decoration: InputDecoration(
-                  labelText: 'City',
-                  border: const OutlineInputBorder(),
-                  errorText: _cityHasError ? 'Please select a city' : null,
-                ),
-                isEmpty: _selectedCityId == null,
-                child: DropdownButton<String>(
-                  value: _selectedCityId,
-                  isExpanded: true,
-                  underline: const SizedBox(),
-                  menuMaxHeight: 200.0,
-                  items: _allCities.map((city) {
-                    return DropdownMenuItem<String>(
-                      value: city.cityId,
-                      child: Text(city.cityName),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedCityId = value;
-                      if (value != null) _cityHasError = false;
-                    });
-                  },
-                ),
-              ),
+
               const SizedBox(height: 16),
 // Property Details Dropdown
               InputDecorator(
