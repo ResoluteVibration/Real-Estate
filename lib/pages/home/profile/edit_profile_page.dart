@@ -1,5 +1,3 @@
-// lib/pages/home/profile/edit_profile_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +7,8 @@ import '../../../models/user.dart';
 import '../../../models/agent.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/city_provider.dart';
+import '../../../widgets/city_dropdown.dart';
+import '../../../theme/custom_colors.dart';
 
 // Extension to capitalize enum names for display
 extension StringExtension on String {
@@ -200,6 +200,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
     final colorScheme = theme.colorScheme;
+    final inputTextStyle = TextStyle(color: CustomColors.mutedBlue);
+    final inputHintStyle = TextStyle(color: CustomColors.mutedBlue.withOpacity(0.7));
 
     if (authProvider.isLoading || ! _isDataInitialized || _currentUser == null) {
       return Scaffold(
@@ -247,30 +249,44 @@ class _EditProfilePageState extends State<EditProfilePage> {
               const SizedBox(height: 24),
               TextFormField(
                 controller: _firstNameController,
-                decoration: const InputDecoration(hintText: 'First Name'),
+                style: inputTextStyle,
+                decoration: InputDecoration(
+                  hintText: 'First Name',
+                  hintStyle: inputHintStyle,
+                ),
                 validator: (value) => value!.isEmpty ? 'Please enter your first name' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _lastNameController,
-                decoration: const InputDecoration(hintText: 'Last Name'),
+                style: inputTextStyle,
+                decoration: InputDecoration(
+                  hintText: 'Last Name',
+                  hintStyle: inputHintStyle,
+                ),
                 validator: (value) => value!.isEmpty ? 'Please enter your last name' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(hintText: 'Email'),
+                style: inputTextStyle.copyWith(color: inputTextStyle.color!.withOpacity(0.5)),
+                decoration: InputDecoration(
+                  hintText: 'Email',
+                  hintStyle: inputHintStyle,
+                ),
                 keyboardType: TextInputType.emailAddress,
                 enabled: false, // Email is read-only
-                style: textTheme.bodyMedium!.copyWith(color: colorScheme.onBackground.withOpacity(0.5)),
               ),
               const SizedBox(height: 16),
               // User Role Dropdown
               DropdownButtonFormField<UserRole>(
                 menuMaxHeight: 100,
                 value: _selectedUserRole,
-                decoration: const InputDecoration(hintText: 'You are?'),
-                style: textTheme.bodyMedium!.copyWith(color: colorScheme.onBackground),
+                decoration: InputDecoration(
+                  hintText: 'You are?',
+                  hintStyle: inputHintStyle,
+                ),
+                style: inputTextStyle,
                 items: UserRole.values.map((role) {
                   return DropdownMenuItem<UserRole>(
                     value: role,
@@ -289,20 +305,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
               if (_selectedUserRole == UserRole.agent) ...[
                 TextFormField(
                   controller: _licenseNumberController,
-                  decoration: const InputDecoration(hintText: 'License Number'),
+                  style: inputTextStyle,
+                  decoration: InputDecoration(
+                    hintText: 'License Number',
+                    hintStyle: inputHintStyle,
+                  ),
                   validator: (value) => value!.isEmpty ? 'Please enter your license number' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _agencyNameController,
-                  decoration: const InputDecoration(hintText: 'Agency Name'),
+                  style: inputTextStyle,
+                  decoration: InputDecoration(
+                    hintText: 'Agency Name',
+                    hintStyle: inputHintStyle,
+                  ),
                   validator: (value) => value!.isEmpty ? 'Please enter your agency name' : null,
                 ),
                 const SizedBox(height: 16),
               ],
               TextFormField(
                 controller: _phoneController,
-                decoration: const InputDecoration(hintText: 'Phone Number'),
+                style: inputTextStyle,
+                decoration: InputDecoration(
+                  hintText: 'Phone Number',
+                  hintStyle: inputHintStyle,
+                ),
                 keyboardType: TextInputType.phone,
                 validator: (value) => value!.isEmpty ? 'Please enter your phone number' : null,
               ),
@@ -330,49 +358,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _whatsappController,
-                  decoration: const InputDecoration(hintText: 'WhatsApp Number'),
+                  style: inputTextStyle,
+                  decoration: InputDecoration(
+                    hintText: 'WhatsApp Number',
+                    hintStyle: inputHintStyle,
+                  ),
                   keyboardType: TextInputType.phone,
                   validator: (value) => value!.isEmpty ? 'Please enter your WhatsApp number' : null,
                 ),
               ],
               const SizedBox(height: 16),
-              Consumer<CityProvider>(
-                builder: (context, cityProvider, child) {
-                  if (cityProvider.isLoading) {
-                    return Center(child: CircularProgressIndicator(color: colorScheme.primary));
-                  }
-
-                  final cities = cityProvider.cities;
-                  return DropdownButtonFormField<String>(
-                    value: _selectedCityId,
-                    style: textTheme.bodyMedium!.copyWith(color: colorScheme.onBackground),
-                    decoration: const InputDecoration(hintText: 'City'),
-                    items: [
-                      DropdownMenuItem<String>(
-                        value: 'list_new_city',
-                        child: Text(
-                          'List Your City',
-                          style: textTheme.bodyMedium!.copyWith(fontStyle: FontStyle.italic, color: colorScheme.primary),
-                        ),
-                      ),
-                      ...cities.map((city) {
-                        return DropdownMenuItem<String>(
-                          value: city.cityId,
-                          child: Text(city.cityName),
-                        );
-                      }).toList(),
-                    ],
-                    onChanged: (value) async {
-                      await _handleCitySelection(context, value);
-                    },
-                    validator: (value) => value == null ? 'Please select a city' : null,
-                  );
+              CityDropdown(
+                selectedCity: _selectedCityId,
+                onCitySelected: (value) {
+                  setState(() {
+                    _selectedCityId = value;
+                  });
                 },
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _addressController,
-                decoration: const InputDecoration(hintText: 'Address'),
+                style: inputTextStyle,
+                decoration: InputDecoration(
+                  hintText: 'Address',
+                  hintStyle: inputHintStyle,
+                ),
                 maxLines: 3,
                 validator: (value) => value!.isEmpty ? 'Please enter your address' : null,
               ),

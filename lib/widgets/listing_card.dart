@@ -202,7 +202,7 @@ class ListingCard extends StatelessWidget {
                         }
                         return Text(
                           cityAndAddress,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: CustomColors.textSecondary),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: CustomColors.mutedBlue),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         );
@@ -229,28 +229,28 @@ class ListingCard extends StatelessWidget {
                               _buildDetailIcon(
                                 icon: Icons.king_bed_rounded,
                                 label: '${details.bhk}',
-                                color: CustomColors.textSecondary,
+                                color: CustomColors.mutedBlue,
                               ),
                               const SizedBox(width: 16),
                               _buildDetailIcon(
                                 icon: Icons.bathtub_rounded,
                                 label: '${details.bathrooms}',
-                                color: CustomColors.textSecondary,
+                                color: CustomColors.mutedBlue,
                               ),
                               if (details.balconies != null && details.balconies! > 0) ...[
                                 const SizedBox(width: 16),
                                 _buildDetailIcon(
                                   icon: Icons.balcony,
                                   label: '${details.balconies}',
-                                  color: CustomColors.textSecondary,
+                                  color: CustomColors.mutedBlue,
                                 ),
                               ],
-                              /*const SizedBox(width: 16),
+                              const SizedBox(width: 16),
                               _buildDetailIcon(
                                 icon: Icons.crop_square,
                                 label: '${property.size} sqft',
-                                color: CustomColors.textSecondary,
-                              ),*/
+                                color: CustomColors.mutedBlue,
+                              ),
                             ],
                           );
                         }
@@ -261,7 +261,7 @@ class ListingCard extends StatelessWidget {
 
                     // Price
                     Text(
-                      '₹${property.price} /mo',
+                      'Available for: ₹${property.price}',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.bold,

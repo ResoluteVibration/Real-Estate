@@ -27,10 +27,22 @@ class _ListingsPageState extends State<ListingsPage> {
   Widget build(BuildContext context) {
     final propertyProvider = Provider.of<PropertyProvider>(context);
     final userListings = propertyProvider.userListings;
-
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Listings'),
+        title: Text('My Listings',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: colorScheme.onPrimary,
+          ),
+        ),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+        ),
+        backgroundColor: colorScheme.primary,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: colorScheme.onPrimary),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: propertyProvider.isLoading
           ? const Center(child: CircularProgressIndicator())

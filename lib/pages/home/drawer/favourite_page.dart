@@ -1,4 +1,3 @@
-// lib/pages/home/drawer/favourite_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +6,7 @@ import 'package:real_estate/models/favourite.dart'; // Using your Favourite mode
 import 'package:real_estate/providers/auth_provider.dart';
 import 'package:real_estate/widgets/property_card.dart';
 import 'package:real_estate/models/property_with_images.dart';
+import 'package:real_estate/theme/custom_colors.dart'; // Import CustomColors for styling
 
 class FavouritePage extends StatefulWidget {
   const FavouritePage({super.key});
@@ -79,11 +79,21 @@ class _FavouritePageState extends State<FavouritePage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Shortlisted Properties'),
-        backgroundColor: Theme.of(context).colorScheme.background,
+        title: Text(
+          'Shortlisted Properties',
+          style: theme.textTheme.titleLarge!.copyWith(color: colorScheme.onPrimary),
+        ),
+        backgroundColor: colorScheme.primary,
         elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+        ),
+        iconTheme: IconThemeData(color: colorScheme.onPrimary),
       ),
       body: FutureBuilder<List<PropertyWithImages>>(
         future: _fetchFavouriteProperties(),

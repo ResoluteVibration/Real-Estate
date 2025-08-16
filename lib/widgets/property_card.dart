@@ -10,6 +10,8 @@ import 'package:real_estate/providers/auth_provider.dart';
 import 'package:real_estate/pages/property/detailed_property_page.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:real_estate/providers/views_provider.dart'; // NEW
+
 
 class PropertyCard extends StatefulWidget {
   final Property property;
@@ -79,13 +81,15 @@ class _PropertyCardState extends State<PropertyCard> {
     final userId = authProvider.userId;
     if (userId == null || userId == "guest_user_id") {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to shortlist properties.')),
+        const SnackBar(content: Text('Log in to save.')),
       );
       return;
     }
 
     try {
       final favouriteRef = FirebaseFirestore.instance.collection('favourites');
+      //final viewsProvider = Provider.of<ViewsProvider>(context, listen: false);
+
       final querySnapshot = await favouriteRef
           .where('user_id', isEqualTo: userId)
           .where('property_id', isEqualTo: widget.property.propertyId)
@@ -95,6 +99,7 @@ class _PropertyCardState extends State<PropertyCard> {
       if (querySnapshot.docs.isNotEmpty) {
         // Property is already a favorite, so remove it
         await favouriteRef.doc(querySnapshot.docs.first.id).delete();
+        //await viewsProvider.updateSave(widget.property.propertyId, false); // decrement saved_count
       } else {
         // Property is not a favorite, so add it
         final newFavourite = Favourite(
@@ -104,6 +109,7 @@ class _PropertyCardState extends State<PropertyCard> {
           createdAt: DateTime.now(),
         );
         await favouriteRef.add(newFavourite.toFirestore());
+        //await viewsProvider.updateSave(widget.property.propertyId, true); // increment saved_count
       }
     } catch (e) {
       debugPrint('Error toggling favorite: $e');
@@ -118,8 +124,16 @@ class _PropertyCardState extends State<PropertyCard> {
     final userId = Provider.of<AuthProvider>(context).userId;
 
     return InkWell(
-      onTap: () {
-        // Navigate to the DetailPropertyPage when the card is tapped
+      onTap: () {//<-async
+        //final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        //final userId = authProvider.userId ?? "guest_user_id";
+
+        // Prevent self-views (owner shouldn't increment)
+        //if (userId != widget.property.ownerId) {
+          //await Provider.of<ViewsProvider>(context, listen: false)
+         //     .incrementView(widget.property.propertyId, userId);
+        //}
+
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => DetailedPropertyPage(property: widget.property),
@@ -251,13 +265,18 @@ class _PropertyCardState extends State<PropertyCard> {
                           const SizedBox(height: 8),
                           // Price
                           Text(
-                            '₹${widget.property.price}',
+                            ' Only For: ₹${widget.property.price}',
                             style: TextStyle(
                               fontFamily: 'Montserrat',
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Theme.of(context).colorScheme.primary,
                             ),
+                          ),
+                          _buildDetailIcon(
+                            icon: Icons.handshake_outlined,
+                            label: widget.property.isNegotiable ? 'Negotiable': 'Not Negotiable',
+                            color: CustomColors.mutedBlue,
                           ),
                         ],
                       ),

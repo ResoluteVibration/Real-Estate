@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 class CustomColors {
   // === Core Palette ===
   static const Color deepBlue = Color(0xFF0D3B66); // Deep navy blue
-  static const Color mutedBlue = Color(0xFF5C80BC); // Muted medium blue
+  static const Color mutedBlue = Color(0xFF5C80BC); // Muted medium blue, used for text field text and borders
   static const Color softBlue = Color(0xFFA7C7E7);  // Soft pastel blue
   static const Color lightSky = Color(0xFFD6EFFF);  // Light sky blue
   static const Color background = Color(0xFFF5FAFF); // Very light blue-tinted background
-  static const Color surface = softBlue;
-  static const Color onSurface = deepBlue;
+  static const Color surface = Colors.white; // Changed to white for text fields
+  static const Color onSurface = mutedBlue; // Text on the surface, e.g., text field input
 
   // === Text Colors ===
   static const Color textPrimary = deepBlue;

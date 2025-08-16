@@ -13,6 +13,7 @@ import '../../../models/amenity.dart';
 import '../../../models/property_details.dart';
 import '../../../models/city.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../theme/custom_colors.dart';
 import '../../../widgets/city_dropdown.dart';
 import '../../../providers/city_provider.dart'; // ✅ New import
 
@@ -278,13 +279,16 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
         title: Text(
           'Post a New Property',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: colorScheme.onSurface,
+            color: colorScheme.onPrimary,
           ),
         ),
-        backgroundColor: colorScheme.background,
+        backgroundColor: colorScheme.primary,
         elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+        ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
+          icon: Icon(Icons.arrow_back, color: colorScheme.onPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -548,6 +552,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: CustomColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -588,6 +593,7 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: CustomColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 16),

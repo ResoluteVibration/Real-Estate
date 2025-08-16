@@ -67,14 +67,18 @@ class MyApp extends StatelessWidget {
         // ✅ Input fields
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: CustomColors.surface,
+          fillColor: CustomColors.surface, // Text fields will be white
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30.0),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: CustomColors.mutedBlue, width: 2.0),
           ),
-          hintStyle: TextStyle(color: CustomColors.textSecondary.withOpacity(0.7)),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: const BorderSide(color: CustomColors.deepBlue, width: 2.0),
+          ),
+          hintStyle: TextStyle(color: CustomColors.mutedBlue.withOpacity(0.7)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          labelStyle: const TextStyle(color: CustomColors.textPrimary),
+          labelStyle: const TextStyle(color: CustomColors.mutedBlue),
         ),
 
         // ✅ Buttons

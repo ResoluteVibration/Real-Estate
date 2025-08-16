@@ -14,6 +14,7 @@ import 'package:real_estate/models/property.dart';
 import '../../providers/city_provider.dart';
 import 'drawer/listings_page.dart';
 import 'drawer/favourite_page.dart';
+import 'package:real_estate/theme/custom_colors.dart'; // Import CustomColors
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -136,16 +137,25 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(30),
           child: TextField(
             controller: _searchController,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            // The style for the text input is already handled by the main.dart theme
+            // so we don't need to specify it here.
             decoration: InputDecoration(
               hintText: 'Search properties...',
+              hintStyle: TextStyle(color: CustomColors.mutedBlue.withOpacity(0.7)),
               prefixIcon: Icon(Icons.search,
                   color: Theme.of(context).colorScheme.onSurface),
-              border: InputBorder.none,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30.0),
+                borderSide: const BorderSide(color: CustomColors.mutedBlue, width: 2.0),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30.0),
+                borderSide: const BorderSide(color: CustomColors.deepBlue, width: 2.0),
+              ),
               contentPadding:
               const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
               filled: true,
-              fillColor: Theme.of(context).colorScheme.surface,
+              fillColor: CustomColors.surface,
             ),
           ),
         ),
@@ -373,11 +383,9 @@ class _HomePageState extends State<HomePage> {
               ],
               if (!isGuest) ...[
                 const Divider(),
-                buildDrawerItem(
-                    icon: Icons.cloud_upload_outlined,
-                    title: 'Populate Amenities'),
-                buildDrawerItem(icon: Icons.logout, title: 'Log Out'),
+                buildDrawerItem(icon: Icons.cloud_upload_outlined, title: 'Populate Amenities'),
               ],
+              buildDrawerItem(icon: Icons.logout, title: 'Log Out'),
             ],
           ),
         ),
