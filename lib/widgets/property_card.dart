@@ -252,7 +252,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                     ),
                                     const SizedBox(width: 16),
                                     _buildDetailIcon(
-                                      icon: Icons.crop_square,
+                                      icon: Icons.square_foot,
                                       label: '${widget.property.size} sqft',
                                       color: CustomColors.mutedBlue,
                                     ),

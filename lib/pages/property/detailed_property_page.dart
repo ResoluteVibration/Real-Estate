@@ -150,7 +150,7 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
       if (userSnapshot == null || !userSnapshot.exists) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not find contact details.')),
+            const SnackBar(content: Text('Contact details not available.')),
           );
         }
         return;
@@ -299,7 +299,7 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
             ),
           ),
           child: const Text(
-            'Contact Now',
+            'For more info Contact',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -496,7 +496,12 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
             ),
             const SizedBox(width: 16),
             _buildDetailIcon(
-              icon: Icons.crop_square,
+              icon: Icons.balcony,
+              label: '${details.bathrooms} Balcony',
+            ),
+            const SizedBox(width: 16),
+            _buildDetailIcon(
+              icon: Icons.square_foot,
               label: '${widget.property.size} sqft',
             ),
           ],

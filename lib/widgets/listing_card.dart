@@ -237,17 +237,9 @@ class ListingCard extends StatelessWidget {
                                 label: '${details.bathrooms}',
                                 color: CustomColors.mutedBlue,
                               ),
-                              if (details.balconies != null && details.balconies! > 0) ...[
-                                const SizedBox(width: 16),
-                                _buildDetailIcon(
-                                  icon: Icons.balcony,
-                                  label: '${details.balconies}',
-                                  color: CustomColors.mutedBlue,
-                                ),
-                              ],
                               const SizedBox(width: 16),
                               _buildDetailIcon(
-                                icon: Icons.crop_square,
+                                icon: Icons.square_foot,
                                 label: '${property.size} sqft',
                                 color: CustomColors.mutedBlue,
                               ),
@@ -261,7 +253,7 @@ class ListingCard extends StatelessWidget {
 
                     // Price
                     Text(
-                      'Available for: ₹${property.price}',
+                      'At: ₹${property.price}',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.bold,

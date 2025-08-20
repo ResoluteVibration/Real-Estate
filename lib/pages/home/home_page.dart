@@ -14,7 +14,8 @@ import 'package:real_estate/models/property.dart';
 import '../../providers/city_provider.dart';
 import 'drawer/listings_page.dart';
 import 'drawer/favourite_page.dart';
-import 'package:real_estate/theme/custom_colors.dart'; // Import CustomColors
+import 'package:real_estate/theme/custom_colors.dart';
+import 'drawer/filters_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -83,6 +84,10 @@ class _HomePageState extends State<HomePage> {
     setState(() => _selectedDrawerItem = item);
 
     switch (item) {
+      case 'Search Properties':
+        Navigator.push(context,
+          MaterialPageRoute(builder: (context) => const FiltersPage()));
+        break;
       case 'Shortlisted/Favourite Properties':
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => const FavouritePage()));
@@ -137,9 +142,6 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(30),
           child: TextField(
             controller: _searchController,
-            // FIX: Add a style for the text input itself.
-            // This ensures the text is visible against the white background.
-            // We use the theme's `onSurface` color for this.
             style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
             decoration: InputDecoration(
               hintText: 'Search properties...',

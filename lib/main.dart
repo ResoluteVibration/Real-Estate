@@ -1,4 +1,3 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -49,6 +48,8 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: CustomColors.background,
         fontFamily: 'Montserrat',
 
+        // FIX: Change text themes for body text to a darker color.
+        // This will automatically make typed text in TextFields visible.
         textTheme: const TextTheme(
           displayLarge: TextStyle(color: CustomColors.textPrimary),
           displayMedium: TextStyle(color: CustomColors.textPrimary),
@@ -59,9 +60,9 @@ class MyApp extends StatelessWidget {
           titleLarge: TextStyle(color: CustomColors.textPrimary),
           titleMedium: TextStyle(color: CustomColors.textPrimary),
           titleSmall: TextStyle(color: CustomColors.textPrimary),
-          bodyLarge: TextStyle(color: CustomColors.textSecondary),
-          bodyMedium: TextStyle(color: CustomColors.textSecondary),
-          bodySmall: TextStyle(color: CustomColors.textSecondary),
+          bodyLarge: TextStyle(color: CustomColors.textPrimary),
+          bodyMedium: TextStyle(color: CustomColors.textPrimary),
+          bodySmall: TextStyle(color: CustomColors.textPrimary),
         ),
 
         // ✅ Input fields
@@ -78,7 +79,9 @@ class MyApp extends StatelessWidget {
           ),
           hintStyle: TextStyle(color: CustomColors.mutedBlue.withOpacity(0.7)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          floatingLabelStyle: const TextStyle(color: CustomColors.onSurface),
           labelStyle: const TextStyle(color: CustomColors.mutedBlue),
+          isDense: true,
         ),
 
         // ✅ Buttons
