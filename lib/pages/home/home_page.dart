@@ -137,8 +137,10 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(30),
           child: TextField(
             controller: _searchController,
-            // The style for the text input is already handled by the main.dart theme
-            // so we don't need to specify it here.
+            // FIX: Add a style for the text input itself.
+            // This ensures the text is visible against the white background.
+            // We use the theme's `onSurface` color for this.
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
             decoration: InputDecoration(
               hintText: 'Search properties...',
               hintStyle: TextStyle(color: CustomColors.mutedBlue.withOpacity(0.7)),
@@ -159,6 +161,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
+
         const SizedBox(height: 32),
         Text(
           'All Properties',

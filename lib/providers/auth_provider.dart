@@ -1,6 +1,6 @@
-// lib/providers/auth_provider.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user.dart';
 import '../models/enums.dart';
@@ -23,6 +23,52 @@ class AuthProvider with ChangeNotifier {
   // This is the essential getter to provide the current user's ID
   // It is needed by the favorite and other pages.
   String? get userId => _currentUser?.userId;
+
+  // Key for shared preferences
+  static const String _userIdKey = 'userId';
+
+  AuthProvider() {
+    _loadUserFromPrefs();
+  }
+
+  Future<void> _saveUserToPrefs(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userIdKey, userId);
+  }
+
+  Future<void> _removeUserFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_userIdKey);
+  }
+
+  Future<void> _loadUserFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedUserId = prefs.getString(_userIdKey);
+    if (savedUserId != null) {
+      // Fetch user data from Firestore using the saved ID
+      try {
+        final userDoc = await _firestore.collection('users').doc(savedUserId).get();
+        if (userDoc.exists) {
+          _currentUser = User.fromFirestore(userDoc);
+          if (_currentUser!.userRole == UserRole.agent) {
+            final agentDoc = await _firestore.collection('agents').doc(_currentUser!.userId).get();
+            if (agentDoc.exists) {
+              _currentAgent = Agent.fromFirestore(agentDoc);
+            }
+          }
+          notifyListeners();
+          debugPrint('User loaded from local storage: $_currentUser');
+        } else {
+          // If the user document doesn't exist, clear the saved ID
+          _removeUserFromPrefs();
+        }
+      } catch (e) {
+        debugPrint('Error loading user from local storage: $e');
+        _removeUserFromPrefs();
+      }
+    }
+  }
+
 
   // Function to register a new user with optional agent details.
   Future<void> registerUser({
@@ -76,6 +122,9 @@ class AuthProvider with ChangeNotifier {
       } else {
         _currentAgent = null;
       }
+
+      await _saveUserToPrefs(_currentUser!.userId!); // Save user ID after registration
+
     } catch (e) {
       debugPrint('Registration Error: $e');
       rethrow;
@@ -111,6 +160,7 @@ class AuthProvider with ChangeNotifier {
             _currentAgent = Agent.fromFirestore(agentDoc);
           }
         }
+        await _saveUserToPrefs(_currentUser!.userId!); // Save user ID after login
       } else {
         throw Exception('Incorrect password.');
       }
@@ -296,6 +346,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> logout() async {
     _currentUser = null;
     _currentAgent = null;
+    await _removeUserFromPrefs(); // Clear local storage on logout
     notifyListeners();
   }
 }

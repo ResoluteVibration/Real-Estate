@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '/providers/auth_provider.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -11,9 +13,19 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    // Navigate to the WelcomePage after a 3-second delay.
+
+    _checkAuthenticationStatus();
+  }
+
+  void _checkAuthenticationStatus(){
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     Future.delayed(const Duration(seconds: 3), () {
-      Navigator.of(context).pushReplacementNamed('/welcome');
+      if (authProvider.currentUser != null){
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
+      else{
+        Navigator.of(context).pushReplacementNamed('/welcome');
+      }
     });
   }
 

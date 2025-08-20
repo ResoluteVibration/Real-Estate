@@ -67,7 +67,7 @@ class MyApp extends StatelessWidget {
         // ✅ Input fields
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: CustomColors.surface, // Text fields will be white
+          fillColor: CustomColors.surface,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30.0),
             borderSide: const BorderSide(color: CustomColors.mutedBlue, width: 2.0),
@@ -84,7 +84,7 @@ class MyApp extends StatelessWidget {
         // ✅ Buttons
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: CustomColors.deepBlue, // was darkGreen
+            backgroundColor: CustomColors.deepBlue,
             foregroundColor: CustomColors.background,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12.0),
