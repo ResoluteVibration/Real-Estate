@@ -15,6 +15,7 @@ class User {
   final String cityId;
   final Timestamp createdAt;
   final Timestamp updatedAt;
+  final String? avatarUrl;
 
   User({
     required this.userId,
@@ -29,6 +30,7 @@ class User {
     required this.cityId,
     required this.createdAt,
     required this.updatedAt,
+    this.avatarUrl,
   });
 
   User copyWith({
@@ -44,6 +46,7 @@ class User {
     String? cityId,
     Timestamp? createdAt,
     Timestamp? updatedAt,
+    String? avatarUrl,
   }) {
     return User(
       userId: userId ?? this.userId,
@@ -58,6 +61,7 @@ class User {
       cityId: cityId ?? this.cityId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 
@@ -77,6 +81,7 @@ class User {
       cityId: data?['city_id'] as String,
       createdAt: data?['created_at'] as Timestamp,
       updatedAt: data?['updated_at'] as Timestamp,
+      avatarUrl: data?['avatar_url'] as String?,
     );
   }
 
@@ -94,6 +99,7 @@ class User {
       'city_id': cityId,
       'created_at': createdAt,
       'updated_at': updatedAt,
+      'avatar_url': avatarUrl,
     };
   }
 }

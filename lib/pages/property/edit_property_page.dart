@@ -16,7 +16,8 @@ import '../../../models/property_with_images.dart';
 import '../../../providers/property_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../widgets/city_dropdown.dart'; // ✅ New import
-import '../../../providers/city_provider.dart'; // ✅ New import
+import '../../../providers/city_provider.dart';
+import '../../theme/custom_colors.dart'; // ✅ New import
 
 
 class EditPropertyPage extends StatefulWidget {
@@ -284,6 +285,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
               // Title
               TextFormField(
                 controller: _titleController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(
                   labelText: 'Property Name',
                   hintText: 'e.g., Antilia',
@@ -299,6 +301,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
               // Description (Optional)
               TextFormField(
                 controller: _descriptionController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(
                   labelText: 'Description (Optional)',
                   hintText: 'e.g., A detailed description...',
@@ -308,6 +311,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
               // Location Address
               TextFormField(
                 controller: _locationAddressController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(
                   labelText: 'Address',
                   hintText: 'e.g., 123 Main St, New York, NY',
@@ -389,6 +393,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
               // Size
               TextFormField(
                 controller: _sizeController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(
                   labelText: 'Size (sq ft)',
                   hintText: 'e.g., 1200',
@@ -408,6 +413,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
               // Price
               TextFormField(
                 controller: _priceController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(
                   labelText: 'Price',
                   hintText: 'e.g., 500000',
@@ -484,6 +490,7 @@ class _EditPropertyPageState extends State<EditPropertyPage> {
                   padding: const EdgeInsets.only(bottom: 16),
                   child: TextFormField(
                     controller: _readyByController,
+                    style: TextStyle(color: CustomColors.mutedBlue),
                     decoration: const InputDecoration(
                       labelText: 'Ready By (Optional)',
                       hintText: 'e.g., 2024-12-31',

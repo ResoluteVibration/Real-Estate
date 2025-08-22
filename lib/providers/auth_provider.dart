@@ -8,11 +8,12 @@ import '../models/agent.dart'; // Import the Agent model
 
 class AuthProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   User? _currentUser;
   Agent? _currentAgent;
   bool _isLoggingIn = false;
   bool _isRegistering = false;
-  bool _isLoading = false; // Added for fetching/updating profile
+  bool _isLoading = false;
 
   User? get currentUser => _currentUser;
   Agent? get currentAgent => _currentAgent;
@@ -20,11 +21,8 @@ class AuthProvider with ChangeNotifier {
   bool get isRegistering => _isRegistering;
   bool get isLoading => _isLoading;
 
-  // This is the essential getter to provide the current user's ID
-  // It is needed by the favorite and other pages.
   String? get userId => _currentUser?.userId;
 
-  // Key for shared preferences
   static const String _userIdKey = 'userId';
 
   AuthProvider() {
@@ -45,21 +43,19 @@ class AuthProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final savedUserId = prefs.getString(_userIdKey);
     if (savedUserId != null) {
-      // Fetch user data from Firestore using the saved ID
       try {
         final userDoc = await _firestore.collection('users').doc(savedUserId).get();
         if (userDoc.exists) {
           _currentUser = User.fromFirestore(userDoc);
           if (_currentUser!.userRole == UserRole.agent) {
-            final agentDoc = await _firestore.collection('agents').doc(_currentUser!.userId).get();
+            final agentDoc =
+            await _firestore.collection('agents').doc(_currentUser!.userId).get();
             if (agentDoc.exists) {
               _currentAgent = Agent.fromFirestore(agentDoc);
             }
           }
           notifyListeners();
-          debugPrint('User loaded from local storage: $_currentUser');
         } else {
-          // If the user document doesn't exist, clear the saved ID
           _removeUserFromPrefs();
         }
       } catch (e) {
@@ -69,8 +65,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-
-  // Function to register a new user with optional agent details.
   Future<void> registerUser({
     required User user,
     String? licenseNumber,
@@ -93,6 +87,7 @@ class AuthProvider with ChangeNotifier {
         userId: userDocRef.id,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
+        avatarUrl: user.avatarUrl ?? '', // ✅ default empty or asset path
       );
       batch.set(userDocRef, newUser.toFirestore());
 
@@ -123,8 +118,7 @@ class AuthProvider with ChangeNotifier {
         _currentAgent = null;
       }
 
-      await _saveUserToPrefs(_currentUser!.userId!); // Save user ID after registration
-
+      await _saveUserToPrefs(_currentUser!.userId);
     } catch (e) {
       debugPrint('Registration Error: $e');
       rethrow;
@@ -134,7 +128,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Function to log in a user.
   Future<void> loginUser(String email, String password) async {
     _isLoggingIn = true;
     notifyListeners();
@@ -155,12 +148,13 @@ class AuthProvider with ChangeNotifier {
       if (user.password == password) {
         _currentUser = user;
         if (user.userRole == UserRole.agent) {
-          final agentDoc = await _firestore.collection('agents').doc(user.userId).get();
+          final agentDoc =
+          await _firestore.collection('agents').doc(user.userId).get();
           if (agentDoc.exists) {
             _currentAgent = Agent.fromFirestore(agentDoc);
           }
         }
-        await _saveUserToPrefs(_currentUser!.userId!); // Save user ID after login
+        await _saveUserToPrefs(_currentUser!.userId);
       } else {
         throw Exception('Incorrect password.');
       }
@@ -173,17 +167,50 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Function to fetch the full user profile including agent details.
+  /// 🔑 Verify if the entered password matches the current user's password
+  Future<bool> verifyPassword(String currentPassword) async {
+    if (_currentUser == null) return false;
+    return _currentUser!.password == currentPassword;
+  }
+
+  /// 🔑 Update password in Firestore and locally
+  Future<void> updatePassword(String newPassword) async {
+    if (_currentUser == null) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final userRef = _firestore.collection('users').doc(_currentUser!.userId);
+
+      await userRef.update({'password': newPassword});
+
+      // Update local cache
+      _currentUser = _currentUser!.copyWith(password: newPassword);
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error updating password: $e");
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+
   Future<void> fetchUserProfile() async {
     if (_currentUser == null) return;
     _isLoading = true;
     notifyListeners();
     try {
-      final userDoc = await _firestore.collection('users').doc(_currentUser!.userId).get();
+      final userDoc =
+      await _firestore.collection('users').doc(_currentUser!.userId).get();
       if (userDoc.exists) {
         _currentUser = User.fromFirestore(userDoc);
         if (_currentUser!.userRole == UserRole.agent) {
-          final agentDoc = await _firestore.collection('agents').doc(_currentUser!.userId).get();
+          final agentDoc =
+          await _firestore.collection('agents').doc(_currentUser!.userId).get();
           if (agentDoc.exists) {
             _currentAgent = Agent.fromFirestore(agentDoc);
           } else {
@@ -201,7 +228,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Function to update the user profile.
   Future<void> updateUserProfile({
     required User updatedUser,
     String? licenseNumber,
@@ -214,21 +240,18 @@ class AuthProvider with ChangeNotifier {
       final batch = _firestore.batch();
       final userDocRef = _firestore.collection('users').doc(updatedUser.userId);
 
-      // Update the user document
       batch.update(userDocRef, updatedUser.toFirestore());
 
-      // Handle agent-specific updates
       if (updatedUser.userRole == UserRole.agent) {
-        final agentDocRef = _firestore.collection('agents').doc(updatedUser.userId);
+        final agentDocRef =
+        _firestore.collection('agents').doc(updatedUser.userId);
         if (_currentAgent != null) {
-          // Update existing agent profile
           final updatedAgent = _currentAgent!.copyWith(
             licenseNumber: licenseNumber,
             agencyName: agencyName,
           );
           batch.update(agentDocRef, updatedAgent.toFirestore());
         } else {
-          // Create new agent profile
           final newAgent = Agent(
             agentId: updatedUser.userId,
             userId: updatedUser.userId,
@@ -238,14 +261,13 @@ class AuthProvider with ChangeNotifier {
           batch.set(agentDocRef, newAgent.toFirestore());
         }
       } else if (_currentAgent != null) {
-        // If user is no longer an agent, delete the agent document
-        final agentDocRef = _firestore.collection('agents').doc(updatedUser.userId);
+        final agentDocRef =
+        _firestore.collection('agents').doc(updatedUser.userId);
         batch.delete(agentDocRef);
       }
 
       await batch.commit();
 
-      // Update local state after successful update
       _currentUser = updatedUser;
       if (updatedUser.userRole == UserRole.agent) {
         _currentAgent = Agent(
@@ -257,7 +279,6 @@ class AuthProvider with ChangeNotifier {
       } else {
         _currentAgent = null;
       }
-
     } catch (e) {
       debugPrint('Error updating user profile: $e');
       rethrow;
@@ -267,31 +288,30 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Updates the current user's role and, for agents, their professional details.
-  Future<void> updateUserRole(String role, {String? licenseNumber, String? agencyName}) async {
+  Future<void> updateUserRole(String role,
+      {String? licenseNumber, String? agencyName}) async {
     if (_currentUser == null) return;
 
     _isLoading = true;
     notifyListeners();
 
     try {
-      final userRef = _firestore.collection('users').doc(_currentUser!.userId);
+      final userRef =
+      _firestore.collection('users').doc(_currentUser!.userId);
       final roleEnum = UserRole.values.firstWhere(
             (e) => e.name.toLowerCase() == role.toLowerCase(),
         orElse: () => UserRole.buyer,
       );
 
-      // Update the user's role in Firestore without updated_at
       await userRef.update({
         'user_role': roleEnum.name,
       });
 
-      // Update the local user object with the new role
       _currentUser = _currentUser!.copyWith(userRole: roleEnum);
 
-      // Handle agent-specific updates if the new role is 'Agent'
       if (roleEnum == UserRole.agent) {
-        final agentRef = _firestore.collection('agents').doc(_currentUser!.userId);
+        final agentRef =
+        _firestore.collection('agents').doc(_currentUser!.userId);
         final newAgent = Agent(
           agentId: _currentUser!.userId,
           userId: _currentUser!.userId,
@@ -299,20 +319,17 @@ class AuthProvider with ChangeNotifier {
           agencyName: agencyName!,
         );
 
-        // Use a transaction to ensure atomicity
         await _firestore.runTransaction((transaction) async {
           transaction.set(agentRef, newAgent.toFirestore(), SetOptions(merge: true));
         });
 
-        // Update local state with new agent info
         _currentAgent = newAgent;
       } else if (_currentAgent != null) {
-        // If the role is no longer 'Agent', delete the agent data
-        final agentRef = _firestore.collection('agents').doc(_currentUser!.userId);
+        final agentRef =
+        _firestore.collection('agents').doc(_currentUser!.userId);
         await agentRef.delete();
         _currentAgent = null;
       }
-
     } catch (e) {
       debugPrint('Error updating user role: $e');
       rethrow;
@@ -322,7 +339,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Function to log in as a guest for development purposes.
   void loginAsGuest() {
     _currentUser = User(
       userId: 'guest_user_id',
@@ -337,16 +353,16 @@ class AuthProvider with ChangeNotifier {
       cityId: '',
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
+      avatarUrl: '', // default empty for guest
     );
     _currentAgent = null;
     notifyListeners();
   }
 
-  // Function to log out the current user.
   Future<void> logout() async {
     _currentUser = null;
     _currentAgent = null;
-    await _removeUserFromPrefs(); // Clear local storage on logout
+    await _removeUserFromPrefs();
     notifyListeners();
   }
 }

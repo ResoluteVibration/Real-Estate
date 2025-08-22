@@ -1,10 +1,9 @@
+// lib/pages/home/profile/edit_profile_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../models/enums.dart';
-import '../../../models/user.dart';
-import '../../../models/agent.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/city_provider.dart';
 import '../../../widgets/city_dropdown.dart';
@@ -44,6 +43,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   UserRole? _selectedUserRole;
   bool _isDataInitialized = false;
 
+  //For Avatar
+  String? _selectedAvatar;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +65,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final _currentUser = authProvider.currentUser;
     final _currentAgent = authProvider.currentAgent;
+    _selectedAvatar = _currentUser?.avatarUrl?.isNotEmpty == true
+        ? _currentUser?.avatarUrl
+        : null;
 
     if (_currentUser != null) {
       _firstNameController = TextEditingController(text: _currentUser.firstName);
@@ -104,50 +109,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     super.dispose();
   }
 
-  Future<void> _handleCitySelection(BuildContext context, String? value) async {
-    if (value == 'list_new_city') {
-      final newCityName = await showDialog<String>(
-        context: context,
-        builder: (BuildContext dialogContext) {
-          final newCityController = TextEditingController();
-          return AlertDialog(
-            title: const Text('List Your City'),
-            content: TextField(
-              controller: newCityController,
-              decoration: const InputDecoration(hintText: "Enter new city name"),
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop(newCityController.text);
-                },
-                child: const Text('Add City'),
-              ),
-            ],
-          );
-        },
-      );
-
-      if (newCityName != null && newCityName.isNotEmpty) {
-        final cityProvider = Provider.of<CityProvider>(context, listen: false);
-        final newCity = await cityProvider.addCity(newCityName);
-        if (newCity != null) {
-          setState(() {
-            _selectedCityId = newCity.cityId;
-          });
-        }
-      }
-    } else {
-      setState(() {
-        _selectedCityId = value;
-      });
-    }
-  }
-
   Future<void> _handleSaveChanges() async {
     if (_formKey.currentState?.validate() ?? false) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -165,6 +126,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         address: _addressController.text,
         cityId: _selectedCityId!,
         updatedAt: Timestamp.now(),
+        avatarUrl: _selectedAvatar ?? '',
       );
 
       try {
@@ -193,6 +155,43 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  void _showAvatarSelectionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext context) {
+        return GridView.builder(
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: 11, // total avatars you have
+          itemBuilder: (context, index) {
+            final avatarPath = "assets/avatars/avatar${index + 1}.png";
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedAvatar = avatarPath;
+                });
+                Navigator.pop(context);
+              },
+              child: CircleAvatar(
+                backgroundImage: AssetImage(avatarPath),
+                radius: 30,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -203,7 +202,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final inputTextStyle = TextStyle(color: CustomColors.mutedBlue);
     final inputHintStyle = TextStyle(color: CustomColors.mutedBlue.withOpacity(0.7));
 
-    if (authProvider.isLoading || ! _isDataInitialized || _currentUser == null) {
+    if (authProvider.isLoading || !_isDataInitialized || _currentUser == null) {
       return Scaffold(
         backgroundColor: colorScheme.background,
         body: Center(
@@ -236,16 +235,43 @@ class _EditProfilePageState extends State<EditProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Center(
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundColor: colorScheme.surface,
-                  child: Icon(
-                    Icons.person,
-                    size: 60,
-                    color: colorScheme.onSurface,
-                  ),
+                child: Stack(
+                  children: [
+                    Hero(
+                      tag: "profile-photo",
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: colorScheme.surface,
+                        backgroundImage: _selectedAvatar != null && _selectedAvatar!.isNotEmpty
+                            ? AssetImage(_selectedAvatar!) // ✅ use saved/selected avatar
+                            : null,
+                        child: _selectedAvatar == null || _selectedAvatar!.isEmpty
+                            ? Icon(Icons.person, size: 60, color: colorScheme.onSurface) // ✅ fallback
+                            : null,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: InkWell(
+                        onTap: () {
+                          _showAvatarSelectionSheet(context);
+                        },
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: colorScheme.primary,
+                          child: const Icon(
+                            Icons.edit,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+
               const SizedBox(height: 24),
               TextFormField(
                 controller: _firstNameController,
@@ -387,21 +413,37 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 maxLines: 3,
                 validator: (value) => value!.isEmpty ? 'Please enter your address' : null,
               ),
-              const SizedBox(height: 32),
-              Consumer<AuthProvider>(
-                builder: (context, authProvider, child) {
-                  return authProvider.isLoading
-                      ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
-                      : ElevatedButton(
-                    onPressed: _handleSaveChanges,
-                    child: Text('Save Changes', style: textTheme.bodyLarge),
-                  );
-                },
-              ),
             ],
           ),
         ),
       ),
+
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Consumer<AuthProvider>(
+            builder: (context, authProvider, child) {
+              return authProvider.isLoading
+                  ? ElevatedButton(
+                onPressed: null,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                child: const CircularProgressIndicator(),
+              )
+                  : ElevatedButton(
+                onPressed: _handleSaveChanges,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50), // full width, good height
+                ),
+                child: Text('Save Changes', style: textTheme.bodyLarge),
+              );
+            },
+          ),
+        ),
+      ),
+
+
     );
   }
 }

@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:real_estate/providers/property_provider.dart';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'theme/custom_colors.dart';
 
+import 'pages/intro/welcome_page.dart';
+import 'pages/intro/splash_page.dart';
 import 'pages/authentication/login_page.dart';
 import 'pages/authentication/register_page.dart';
-import 'pages/intro/splash_page.dart';
-import 'pages/intro/welcome_page.dart';
 import 'pages/home/home_page.dart';
 
 import 'providers/auth_provider.dart';
 import 'providers/city_provider.dart';
+import 'package:real_estate/providers/property_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,7 +60,7 @@ class MyApp extends StatelessWidget {
           titleLarge: TextStyle(color: CustomColors.textPrimary),
           titleMedium: TextStyle(color: CustomColors.textPrimary),
           titleSmall: TextStyle(color: CustomColors.textPrimary),
-          bodyLarge: TextStyle(color: CustomColors.textPrimary),
+          bodyLarge: TextStyle(color: CustomColors.textSecondary),
           bodyMedium: TextStyle(color: CustomColors.textPrimary),
           bodySmall: TextStyle(color: CustomColors.textPrimary),
         ),

@@ -6,6 +6,7 @@ import '../../models/enums.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/city_provider.dart';
+import '../../theme/custom_colors.dart';
 import '../../widgets/city_dropdown.dart'; // ✅ New import
 
 extension StringExtension on String {
@@ -39,6 +40,15 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _whatsappSameAsPhone = true;
   String? _selectedCity;
   UserRole _selectedUserRole = UserRole.buyer;
+
+  // A list of default avatars for new users
+  final List<String> _defaultAvatars = [
+    'assets/avatars/avatar1.png',
+    'assets/avatars/avatar2.png',
+    'assets/avatars/avatar3.png',
+    'assets/avatars/avatar4.png',
+    'assets/avatars/avatar5.png',
+  ];
 
   @override
   void initState() {
@@ -79,6 +89,8 @@ class _RegisterPageState extends State<RegisterPage> {
         cityId: _selectedCity!,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
+        // Assign a default avatar here
+        avatarUrl: null,
       );
 
       try {
@@ -124,6 +136,7 @@ class _RegisterPageState extends State<RegisterPage> {
             children: [
               TextFormField(
                 controller: _firstNameController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(hintText: 'First Name'),
                 validator: (value) =>
                 value!.isEmpty ? 'Please enter your first name' : null,
@@ -131,6 +144,7 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _lastNameController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(hintText: 'Last Name'),
                 validator: (value) =>
                 value!.isEmpty ? 'Please enter your last name' : null,
@@ -138,6 +152,7 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(hintText: 'Email'),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) =>
@@ -146,6 +161,7 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(hintText: 'Password'),
                 obscureText: true,
                 validator: (value) => value!.length < 6
@@ -174,6 +190,7 @@ class _RegisterPageState extends State<RegisterPage> {
               if (_selectedUserRole == UserRole.agent) ...[
                 TextFormField(
                   controller: _licenseNumberController,
+                  style: TextStyle(color: CustomColors.mutedBlue),
                   decoration: const InputDecoration(hintText: 'License Number'),
                   validator: (value) =>
                   value!.isEmpty ? 'Please enter your license number' : null,
@@ -181,6 +198,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _agencyNameController,
+                  style: TextStyle(color: CustomColors.mutedBlue),
                   decoration: const InputDecoration(hintText: 'Agency Name'),
                   validator: (value) =>
                   value!.isEmpty ? 'Please enter your agency name' : null,
@@ -189,6 +207,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ],
               TextFormField(
                 controller: _phoneController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(hintText: 'Phone Number'),
                 keyboardType: TextInputType.phone,
                 validator: (value) =>
@@ -218,6 +237,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _whatsappController,
+                  style: TextStyle(color: CustomColors.mutedBlue),
                   decoration: const InputDecoration(hintText: 'WhatsApp Number'),
                   keyboardType: TextInputType.phone,
                   validator: (value) =>
@@ -239,6 +259,7 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _addressController,
+                style: TextStyle(color: CustomColors.mutedBlue),
                 decoration: const InputDecoration(hintText: 'Address'),
                 maxLines: 3,
                 validator: (value) =>
