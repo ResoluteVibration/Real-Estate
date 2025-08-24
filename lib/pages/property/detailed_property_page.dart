@@ -13,6 +13,8 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 
+import '../../providers/contacted_provider.dart';
+
 class DetailedPropertyPage extends StatefulWidget {
   final Property property;
 
@@ -290,7 +292,28 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton(
-          onPressed: _showContactDialog,
+          onPressed: () async {
+            final authProvider = Provider.of<AuthProvider>(context, listen: false);
+            final userId = authProvider.userId;
+
+            if (userId == null || userId == "guest_user_id") {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please log in to contact.')),
+              );
+              return;
+            }
+
+            // ✅ Add to contacted collection
+            try {
+              await Provider.of<ContactedProvider>(context, listen: false)
+                  .addContacted(userId, widget.property.propertyId);
+            } catch (e) {
+              debugPrint("Error saving contacted property: $e");
+            }
+
+            // Then show the dialog
+            _showContactDialog();
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.primary,
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -308,6 +331,7 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
           ),
         ),
       ),
+
     );
   }
 

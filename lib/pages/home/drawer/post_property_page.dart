@@ -257,13 +257,61 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
         print('Attempting to commit Firestore batch...');
         await batch.commit();
         print('Batch committed successfully!');
-        _showSuccessDialog();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Property Posted Successfully!',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.black87,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          // Navigate back after showing the snackbar
+          Navigator.of(context).pop();
+        }
       } on FirebaseException catch (e) {
         print('Firebase Exception while posting property: $e');
-        Fluttertoast.showToast(msg: 'Failed to post property (Firebase): ${e.message}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Failed to post property (Firebase): ${e.message}',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
       } catch (e) {
         print('General Exception while posting property: $e');
-        Fluttertoast.showToast(msg: 'Failed to post property: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Failed to post property: $e',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
       } finally {
         setState(() {
           _isUploading = false;

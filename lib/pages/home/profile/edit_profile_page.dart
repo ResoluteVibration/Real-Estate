@@ -139,16 +139,41 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ? _agencyNameController.text
               : null,
         );
+
         if (mounted) {
+          // Show the success snackbar
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated successfully!')),
+            SnackBar(
+              content: const Text('Profile updated successfully!',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.black87,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
           );
+          // Navigate back after showing the snackbar
           Navigator.of(context).pop();
         }
       } catch (e) {
         if (mounted) {
+          // Show the failure snackbar
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to update profile: $e')),
+            SnackBar(
+              content: Text(
+                'Failed to update profile: $e',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 5),
+            ),
           );
         }
       }
@@ -442,8 +467,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
         ),
       ),
-
-
     );
   }
 }

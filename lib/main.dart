@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:real_estate/providers/contacted_provider.dart';
 import 'firebase_options.dart';
 import 'theme/custom_colors.dart';
 
@@ -26,6 +27,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => CityProvider()),
         ChangeNotifierProvider(create: (_) => PropertyProvider()),
+        ChangeNotifierProvider(create: (_) => ContactedProvider()),
       ],
       child: const MyApp(),
     ),

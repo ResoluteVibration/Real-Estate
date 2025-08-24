@@ -29,6 +29,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -41,14 +42,13 @@ class _RegisterPageState extends State<RegisterPage> {
   String? _selectedCity;
   UserRole _selectedUserRole = UserRole.buyer;
 
-  // A list of default avatars for new users
-  final List<String> _defaultAvatars = [
-    'assets/avatars/avatar1.png',
-    'assets/avatars/avatar2.png',
-    'assets/avatars/avatar3.png',
-    'assets/avatars/avatar4.png',
-    'assets/avatars/avatar5.png',
-  ];
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  // ✅ Regex
+  final RegExp _emailRegex = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
+  final RegExp _passwordRegex =
+  RegExp(r'^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[!@#\$&*~]).{6,}$');
 
   @override
   void initState() {
@@ -62,6 +62,7 @@ class _RegisterPageState extends State<RegisterPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
@@ -89,7 +90,6 @@ class _RegisterPageState extends State<RegisterPage> {
         cityId: _selectedCity!,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-        // Assign a default avatar here
         avatarUrl: null,
       );
 
@@ -127,158 +127,234 @@ class _RegisterPageState extends State<RegisterPage> {
         iconTheme: IconThemeData(color: colorScheme.onPrimary),
       ),
       backgroundColor: colorScheme.background,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _firstNameController,
-                style: TextStyle(color: CustomColors.mutedBlue),
-                decoration: const InputDecoration(hintText: 'First Name'),
-                validator: (value) =>
-                value!.isEmpty ? 'Please enter your first name' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _lastNameController,
-                style: TextStyle(color: CustomColors.mutedBlue),
-                decoration: const InputDecoration(hintText: 'Last Name'),
-                validator: (value) =>
-                value!.isEmpty ? 'Please enter your last name' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                style: TextStyle(color: CustomColors.mutedBlue),
-                decoration: const InputDecoration(hintText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) =>
-                value!.isEmpty ? 'Please enter your email' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                style: TextStyle(color: CustomColors.mutedBlue),
-                decoration: const InputDecoration(hintText: 'Password'),
-                obscureText: true,
-                validator: (value) => value!.length < 6
-                    ? 'Password must be at least 6 characters long'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<UserRole>(
-                value: _selectedUserRole,
-                decoration: const InputDecoration(hintText: 'You are?'),
-                items: UserRole.values.map((role) {
-                  return DropdownMenuItem<UserRole>(
-                    value: role,
-                    child: Text(role.name.toCapitalizedString()),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedUserRole = value!;
-                  });
-                },
-                validator: (value) =>
-                value == null ? 'Please select your role' : null,
-              ),
-              const SizedBox(height: 16),
-              if (_selectedUserRole == UserRole.agent) ...[
-                TextFormField(
-                  controller: _licenseNumberController,
-                  style: TextStyle(color: CustomColors.mutedBlue),
-                  decoration: const InputDecoration(hintText: 'License Number'),
-                  validator: (value) =>
-                  value!.isEmpty ? 'Please enter your license number' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _agencyNameController,
-                  style: TextStyle(color: CustomColors.mutedBlue),
-                  decoration: const InputDecoration(hintText: 'Agency Name'),
-                  validator: (value) =>
-                  value!.isEmpty ? 'Please enter your agency name' : null,
-                ),
-                const SizedBox(height: 16),
-              ],
-              TextFormField(
-                controller: _phoneController,
-                style: TextStyle(color: CustomColors.mutedBlue),
-                decoration: const InputDecoration(hintText: 'Phone Number'),
-                keyboardType: TextInputType.phone,
-                validator: (value) =>
-                value!.isEmpty ? 'Please enter your phone number' : null,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'WhatsApp same as Phone',
-                      style: Theme.of(context).textTheme.bodyLarge,
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      controller: _firstNameController,
+                      style: TextStyle(color: CustomColors.mutedBlue),
+                      decoration: const InputDecoration(hintText: 'First Name'),
+                      validator: (value) =>
+                      value!.isEmpty ? 'Please enter your first name' : null,
                     ),
-                  ),
-                  Switch(
-                    value: _whatsappSameAsPhone,
-                    onChanged: (value) {
-                      setState(() {
-                        _whatsappSameAsPhone = value;
-                      });
-                    },
-                    activeColor: colorScheme.primary,
-                  ),
-                ],
-              ),
-              if (!_whatsappSameAsPhone) ...[
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _whatsappController,
-                  style: TextStyle(color: CustomColors.mutedBlue),
-                  decoration: const InputDecoration(hintText: 'WhatsApp Number'),
-                  keyboardType: TextInputType.phone,
-                  validator: (value) =>
-                  value!.isEmpty ? 'Please enter your WhatsApp number' : null,
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _lastNameController,
+                      style: TextStyle(color: CustomColors.mutedBlue),
+                      decoration: const InputDecoration(hintText: 'Last Name'),
+                      validator: (value) =>
+                      value!.isEmpty ? 'Please enter your last name' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _emailController,
+                      style: TextStyle(color: CustomColors.mutedBlue),
+                      decoration: const InputDecoration(hintText: 'Email'),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your email';
+                        }
+                        if (!_emailRegex.hasMatch(value)) {
+                          return 'Enter a valid email address';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // ✅ Password with toggle
+                    TextFormField(
+                      controller: _passwordController,
+                      style: TextStyle(color: CustomColors.mutedBlue),
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        hintText: 'Password',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a password';
+                        }
+                        if (!_passwordRegex.hasMatch(value)) {
+                          return 'Password must have upper, lower, digit & special char';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // ✅ Confirm Password with toggle
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      style: TextStyle(color: CustomColors.mutedBlue),
+                      obscureText: _obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        hintText: 'Re-enter Password',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please re-enter your password';
+                        }
+                        if (value != _passwordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<UserRole>(
+                      value: _selectedUserRole,
+                      decoration: const InputDecoration(hintText: 'You are?'),
+                      items: UserRole.values.map((role) {
+                        return DropdownMenuItem<UserRole>(
+                          value: role,
+                          child: Text(role.name.toCapitalizedString()),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedUserRole = value!;
+                        });
+                      },
+                      validator: (value) =>
+                      value == null ? 'Please select your role' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    if (_selectedUserRole == UserRole.agent) ...[
+                      TextFormField(
+                        controller: _licenseNumberController,
+                        style: TextStyle(color: CustomColors.mutedBlue),
+                        decoration:
+                        const InputDecoration(hintText: 'License Number'),
+                        validator: (value) => value!.isEmpty
+                            ? 'Please enter your license number'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _agencyNameController,
+                        style: TextStyle(color: CustomColors.mutedBlue),
+                        decoration:
+                        const InputDecoration(hintText: 'Agency Name'),
+                        validator: (value) => value!.isEmpty
+                            ? 'Please enter your agency name'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    TextFormField(
+                      controller: _phoneController,
+                      style: TextStyle(color: CustomColors.mutedBlue),
+                      decoration:
+                      const InputDecoration(hintText: 'Phone Number'),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) =>
+                      value!.isEmpty ? 'Please enter your phone number' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'WhatsApp same as Phone',
+                            style: TextStyle(color: CustomColors.mutedBlue),
+                          ),
+                        ),
+                        Switch(
+                          value: _whatsappSameAsPhone,
+                          onChanged: (value) {
+                            setState(() {
+                              _whatsappSameAsPhone = value;
+                            });
+                          },
+                          activeColor: colorScheme.primary,
+                        ),
+                      ],
+                    ),
+                    if (!_whatsappSameAsPhone) ...[
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _whatsappController,
+                        style: TextStyle(color: CustomColors.mutedBlue),
+                        decoration: const InputDecoration(hintText: 'WhatsApp Number'),
+                        keyboardType: TextInputType.phone,
+                        validator: (value) => value!.isEmpty
+                            ? 'Please enter your WhatsApp number'
+                            : null,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    CityDropdown(
+                      selectedCity: _selectedCity,
+                      onCitySelected: (value) {
+                        setState(() {
+                          _selectedCity = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _addressController,
+                      style: TextStyle(color: CustomColors.mutedBlue),
+                      decoration: const InputDecoration(hintText: 'Address'),
+                      maxLines: 3,
+                      validator: (value) =>
+                      value!.isEmpty ? 'Please enter your address' : null,
+                    ),
+                  ],
                 ),
-              ],
-              const SizedBox(height: 16),
-
-              // ✅ City dropdown widget
-              CityDropdown(
-                selectedCity: _selectedCity,
-                onCitySelected: (value) {
-                  setState(() {
-                    _selectedCity = value;
-                  });
-                },
               ),
-
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _addressController,
-                style: TextStyle(color: CustomColors.mutedBlue),
-                decoration: const InputDecoration(hintText: 'Address'),
-                maxLines: 3,
-                validator: (value) =>
-                value!.isEmpty ? 'Please enter your address' : null,
-              ),
-              const SizedBox(height: 32),
-              Consumer<AuthProvider>(
+            ),
+          ),
+          // ✅ Sticky Register button
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Consumer<AuthProvider>(
                 builder: (context, authProvider, child) {
                   return authProvider.isRegistering
                       ? const Center(child: CircularProgressIndicator())
                       : ElevatedButton(
                     onPressed: _register,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                    ),
                     child: const Text('Register'),
                   );
                 },
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

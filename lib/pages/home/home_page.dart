@@ -12,6 +12,7 @@ import 'package:real_estate/widgets/handlePostPropertyAction.dart';
 import 'package:real_estate/models/property_with_images.dart';
 import 'package:real_estate/models/property.dart';
 import '../../providers/city_provider.dart';
+import 'drawer/contacted_properties_page.dart';
 import 'drawer/listings_page.dart';
 import 'drawer/favourite_page.dart';
 import 'package:real_estate/theme/custom_colors.dart';
@@ -91,6 +92,10 @@ class _HomePageState extends State<HomePage> {
       case 'Shortlisted/Favourite Properties':
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => const FavouritePage()));
+        break;
+      case 'Contacted Properties':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const ContactedPropertiesPage()));
         break;
       case 'Post New Property':
         handlePostPropertyAction(context);
@@ -283,15 +288,27 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
         ),
         leading: IconButton(
-          icon: Icon(Icons.account_circle,
-              color: Theme.of(context).colorScheme.onSecondary),
           onPressed: () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const ProfilePage()),
             );
           },
+          icon: CircleAvatar(
+            radius: 16,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            backgroundImage: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
+                ? NetworkImage(user.avatarUrl!)
+                : null,
+            child: (user?.avatarUrl == null || user!.avatarUrl!.isEmpty)
+                ? Icon(
+              Icons.person,
+              color: Theme.of(context).colorScheme.onSecondary,
+            )
+                : null,
+          ),
         ),
+
         actions: [
           IconButton(
             icon: Icon(Icons.menu,
@@ -352,19 +369,23 @@ class _HomePageState extends State<HomePage> {
                         color:
                         Theme.of(context).colorScheme.onSecondary)),
                 currentAccountPicture: CircleAvatar(
-                  backgroundColor:
-                  Theme.of(context).colorScheme.primary,
-                  child: Text(
-                    user?.firstName[0] ?? 'U',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
-                        ?.copyWith(
-                      color:
-                      Theme.of(context).colorScheme.onPrimary,
+                  radius: 30,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  backgroundImage: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
+                      ? NetworkImage(user.avatarUrl!)
+                      : null,
+                  child: (user == null || user.avatarUrl == null || user.avatarUrl!.isEmpty)
+                      ? Text(
+                    (user?.firstName.isNotEmpty ?? false)
+                        ? user!.firstName[0]
+                        : 'U',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onPrimary,
                     ),
-                  ),
+                  )
+                      : null,
                 ),
+
               ),
               buildDrawerItem(icon: Icons.home, title: 'Home Page'),
               buildDrawerItem(icon: Icons.search, title: 'Search Properties'),

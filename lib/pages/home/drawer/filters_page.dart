@@ -261,6 +261,7 @@ class _FiltersPageState extends State<FiltersPage> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: _locationController,
+                      style: TextStyle(color: CustomColors.mutedBlue),
                       decoration: InputDecoration(
                         labelText: 'Address',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -306,6 +307,7 @@ class _FiltersPageState extends State<FiltersPage> {
                         Expanded(
                           child: TextField(
                             controller: _minPriceController,
+                            style: TextStyle(color: CustomColors.mutedBlue),
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
                               labelText: 'Min Price',
@@ -317,6 +319,7 @@ class _FiltersPageState extends State<FiltersPage> {
                         Expanded(
                           child: TextField(
                             controller: _maxPriceController,
+                            style: TextStyle(color: CustomColors.mutedBlue),
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
                               labelText: 'Max Price',

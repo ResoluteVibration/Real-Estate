@@ -10,8 +10,6 @@ import 'package:real_estate/providers/auth_provider.dart';
 import 'package:real_estate/pages/property/detailed_property_page.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:real_estate/providers/views_provider.dart'; // NEW
-
 
 class PropertyCard extends StatefulWidget {
   final Property property;
