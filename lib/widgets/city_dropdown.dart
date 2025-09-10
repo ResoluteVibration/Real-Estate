@@ -23,37 +23,102 @@ class CityDropdown extends StatefulWidget {
 class _CityDropdownState extends State<CityDropdown> {
   Future<void> _handleCitySelection(BuildContext context, String? value) async {
     if (value == 'No City Selected') {
+      final newCityController = TextEditingController();
+
       final newCityName = await showDialog<String>(
         context: context,
         builder: (BuildContext dialogContext) {
-          final newCityController = TextEditingController();
+          bool capitalizeNext = true; // start by capitalizing first letter
+
           return AlertDialog(
             backgroundColor: Theme.of(dialogContext).colorScheme.surface,
             title: Text(
               'List Your City',
               style: TextStyle(color: Theme.of(dialogContext).colorScheme.onSurface),
             ),
-            content: TextField(
-              controller: newCityController,
-              decoration: InputDecoration(
-                hintText: "Enter new city name",
-                hintStyle: TextStyle(
-                  color: Theme.of(dialogContext).colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ),
-              style: TextStyle(color: Theme.of(dialogContext).colorScheme.onSurface),
+            content: StatefulBuilder(
+              builder: (context, setState) {
+                return TextField(
+                  controller: newCityController,
+                  decoration: InputDecoration(
+                    hintText: "Enter new city name",
+                    hintStyle: TextStyle(
+                      color: Theme.of(dialogContext).colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                  style: TextStyle(color: Theme.of(dialogContext).colorScheme.onSurface),
+                  onChanged: (value) {
+                    if (value.isEmpty) return;
+
+                    final lastChar = value[value.length - 1];
+
+                    if (lastChar == " ") {
+                      capitalizeNext = true;
+                      print("➡️ Space detected, next character will be capitalized");
+                    } else if (capitalizeNext) {
+                      final corrected = value.substring(0, value.length - 1) +
+                          lastChar.toUpperCase();
+                      newCityController.value = TextEditingValue(
+                        text: corrected,
+                        selection: TextSelection.collapsed(offset: corrected.length),
+                      );
+                      capitalizeNext = false;
+                      print("✅ Auto-capitalized next letter: $corrected");
+                    }
+                  },
+                );
+              },
             ),
-            actions: <Widget>[
+            actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                },
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: Text('Cancel',
                     style: TextStyle(color: Theme.of(dialogContext).colorScheme.primary)),
               ),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop(newCityController.text);
+                onPressed: () async {
+                  final enteredName = newCityController.text.trim();
+
+                  if (enteredName.isEmpty) return;
+
+                  // Normalize to Camel Case (safety net)
+                  String toCamelCase(String input) {
+                    return input
+                        .split(' ')
+                        .where((word) => word.isNotEmpty)
+                        .map((word) =>
+                    word[0].toUpperCase() + word.substring(1).toLowerCase())
+                        .join(' ');
+                  }
+
+                  final correctedName = toCamelCase(enteredName);
+
+                  // ✅ Ask confirmation before adding
+                  final confirm = await showDialog<bool>(
+                    context: dialogContext,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text("Confirm City"),
+                      content: Text("Do you want to add \"$correctedName\" to the list?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          child: const Text("Cancel"),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          child: const Text("Add"),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true) {
+                    Navigator.of(dialogContext).pop(correctedName);
+                    print("🏙️ Adding new city: $correctedName");
+                  } else {
+                    Navigator.of(dialogContext).pop();
+                    print("❌ City addition cancelled");
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(dialogContext).colorScheme.primary,
@@ -67,15 +132,30 @@ class _CityDropdownState extends State<CityDropdown> {
 
       if (newCityName != null && newCityName.isNotEmpty) {
         final cityProvider = Provider.of<CityProvider>(context, listen: false);
-        final newCity = await cityProvider.addCity(newCityName);
-        if (newCity != null) {
-          widget.onCitySelected(newCity.cityId);
+
+        // Check if city already exists
+        final existingCity = cityProvider.cities.firstWhere(
+              (city) => city.cityName.toLowerCase() == newCityName.toLowerCase(),
+          orElse: () => City(cityId: '', cityName: ''),
+        );
+
+        if (existingCity.cityId.isNotEmpty) {
+          print("⚠️ City already exists: ${existingCity.cityName}, selecting it instead");
+          widget.onCitySelected(existingCity.cityId);
+        } else {
+          final newCity = await cityProvider.addCity(newCityName);
+          if (newCity != null) {
+            widget.onCitySelected(newCity.cityId);
+            print("✅ City successfully added: ${newCity.cityName}");
+          }
         }
       }
     } else {
       widget.onCitySelected(value);
+      print("📌 Selected city ID: $value");
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

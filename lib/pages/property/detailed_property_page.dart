@@ -112,7 +112,15 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
     final userId = authProvider.userId;
     if (userId == null || userId == "guest_user_id") {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to shortlist properties.')),
+        SnackBar(
+          content: const Text('Please log in to shortlist properties.', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(seconds: 3),
+        ),
       );
       return;
     }
@@ -139,7 +147,15 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
     } catch (e) {
       debugPrint('Error toggling favorite: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update shortlist.')),
+        SnackBar(
+          content: const Text('Failed to update shortlist.', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
@@ -152,7 +168,15 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
       if (userSnapshot == null || !userSnapshot.exists) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Contact details not available.')),
+            SnackBar(
+              content: const Text('Contact details not available.', style: TextStyle(color: Colors.white)),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
           );
         }
         return;
@@ -185,7 +209,15 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
                           Clipboard.setData(ClipboardData(text: phone));
                           Navigator.of(context).pop();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Phone number copied to clipboard!')),
+                            SnackBar(
+                              content: const Text('Phone number copied to clipboard!', style: TextStyle(color: Colors.white)),
+                              backgroundColor: Colors.black87,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
                           );
                         },
                       ),
@@ -204,7 +236,15 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
                           Clipboard.setData(ClipboardData(text: whatsapp));
                           Navigator.of(context).pop();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('WhatsApp number copied to clipboard!')),
+                            SnackBar(
+                              content: const Text('WhatsApp number copied to clipboard!', style: TextStyle(color: Colors.white)),
+                              backgroundColor: Colors.black87,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
                           );
                         },
                       ),
@@ -226,7 +266,15 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
       debugPrint('Error showing contact dialog: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('An error occurred while fetching contact details.')),
+          SnackBar(
+            content: const Text('An error occurred while fetching contact details.', style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     }
@@ -298,21 +346,61 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
 
             if (userId == null || userId == "guest_user_id") {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Please log in to contact.')),
+                SnackBar(
+                  content: const Text('Please log in to contact.', style: TextStyle(color: Colors.white)),
+                  backgroundColor: Colors.red,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  duration: const Duration(seconds: 3),
+                ),
               );
               return;
             }
 
-            // ✅ Add to contacted collection
+            // ✅ Add to contacted collection and handle owner check
             try {
-              await Provider.of<ContactedProvider>(context, listen: false)
-                  .addContacted(userId, widget.property.propertyId);
+              final contactedProvider = Provider.of<ContactedProvider>(context, listen: false);
+              final resultMessage = await contactedProvider.addContacted(userId, widget.property.propertyId);
+
+              // Use the result message to determine the action
+              if (resultMessage == null) {
+                // Case 1: Success - Property was newly added to contacted list.
+                // Now show the contact dialog.
+                _showContactDialog();
+              } else if (resultMessage == "You cannot contact your own property.") {
+                // Case 2: User is the owner - Show a specific error and prevent dialog.
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(resultMessage, style: const TextStyle(color: Colors.white)),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              } else if (resultMessage == "Property already contacted.") {
+                // Case 3: Property was already contacted - Just show the dialog without a snackbar.
+                _showContactDialog();
+                // The snackbar that you wanted to remove has been deleted from here.
+              }
             } catch (e) {
               debugPrint("Error saving contacted property: $e");
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Failed to save contacted property.', style: TextStyle(color: Colors.white)),
+                  backgroundColor: Colors.red,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
             }
-
-            // Then show the dialog
-            _showContactDialog();
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.primary,
@@ -331,7 +419,6 @@ class _DetailedPropertyPageState extends State<DetailedPropertyPage> {
           ),
         ),
       ),
-
     );
   }
 

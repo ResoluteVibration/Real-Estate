@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:real_estate/pages/home/drawer/post_property_page.dart';
+import 'package:real_estate/pages/home/drawer/view_response_page.dart';
 import 'package:real_estate/providers/auth_provider.dart';
 import 'package:real_estate/utils/database_seeder.dart';
 import 'package:real_estate/widgets/property_card.dart';
@@ -99,6 +99,10 @@ class _HomePageState extends State<HomePage> {
         break;
       case 'Post New Property':
         handlePostPropertyAction(context);
+        break;
+      case 'View Responses':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const ViewResponsesPage()));
         break;
       case 'My Listings':
         Navigator.push(context,
@@ -298,8 +302,9 @@ class _HomePageState extends State<HomePage> {
             radius: 16,
             backgroundColor: Theme.of(context).colorScheme.primary,
             backgroundImage: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
-                ? NetworkImage(user.avatarUrl!)
-                : null,
+                ? NetworkImage(user.avatarUrl!, scale: 1.0)
+                : AssetImage(user!.avatarUrl!) as ImageProvider,
+            key: ValueKey(user?.avatarUrl ?? 'no-avatar'),
             child: (user?.avatarUrl == null || user!.avatarUrl!.isEmpty)
                 ? Icon(
               Icons.person,
@@ -372,9 +377,10 @@ class _HomePageState extends State<HomePage> {
                   radius: 30,
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   backgroundImage: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
-                      ? NetworkImage(user.avatarUrl!)
-                      : null,
-                  child: (user == null || user.avatarUrl == null || user.avatarUrl!.isEmpty)
+                      ? NetworkImage(user.avatarUrl!, scale: 1.0)
+                      : AssetImage(user!.avatarUrl!) as ImageProvider,
+                  key: ValueKey(user?.avatarUrl ?? 'no-avatar'),
+                  child: (user?.avatarUrl == null || user!.avatarUrl!.isEmpty)
                       ? Text(
                     (user?.firstName.isNotEmpty ?? false)
                         ? user!.firstName[0]
@@ -409,9 +415,9 @@ class _HomePageState extends State<HomePage> {
               ],
               if (!isGuest) ...[
                 const Divider(),
-                buildDrawerItem(icon: Icons.cloud_upload_outlined, title: 'Populate Amenities'),
+                //buildDrawerItem(icon: Icons.cloud_upload_outlined, title: 'Populate Amenities'),
+                buildDrawerItem(icon: Icons.logout, title: 'Log Out'),
               ],
-              buildDrawerItem(icon: Icons.logout, title: 'Log Out'),
             ],
           ),
         ),

@@ -37,11 +37,12 @@ class _SplashPageState extends State<SplashPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: Center(
-        child: Image.asset(
-          'assets/logo/x_state.png',
-          width: screenWidth * 2,
-          height: screenHeight * 1,
-          fit: BoxFit.contain,
+        child: Text('Real Estate',
+          style: TextStyle(
+            fontSize: screenWidth * 0.1,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onBackground,
+          ),
         ),
       ),
     );

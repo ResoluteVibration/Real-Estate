@@ -208,7 +208,6 @@ class _PropertyCardState extends State<PropertyCard> {
                             maxLines: 1,
                           ),
                           const SizedBox(height: 4),
-                          // Location Address with City
                           FutureBuilder<City?>(
                             future: _cityFuture,
                             builder: (context, snapshot) {
