@@ -70,7 +70,6 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
     try {
       final detailsSnapshot = await _firestore.collection('property_details').get();
       final amenitiesSnapshot = await _firestore.collection('amenities').get();
-      // final citiesSnapshot = await _firestore.collection('cities').get(); // ❌ Removed
       setState(() {
         _allPropertyDetails = detailsSnapshot.docs
             .map((doc) => PropertyDetails.fromFirestore(doc))
@@ -78,12 +77,9 @@ class _PostPropertyPageState extends State<PostPropertyPage> {
         _allAmenities = amenitiesSnapshot.docs
             .map((doc) => Amenity.fromFirestore(doc))
             .toList();
-        // _allCities = citiesSnapshot.docs // ❌ Removed
-        //     .map((doc) => City.fromFirestore(doc))
-        //     .toList();
       });
     } catch (e) {
-      Fluttertoast.showToast(msg: 'Failed to fetch dropdown data: $e');
+      print('Failed to fetch dropdown data: $e');
     }
   }
   @override

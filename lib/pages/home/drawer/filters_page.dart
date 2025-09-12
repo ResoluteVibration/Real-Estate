@@ -26,7 +26,7 @@ class _FiltersPageState extends State<FiltersPage> {
   final TextEditingController _maxPriceController = TextEditingController();
   // The price range has been expanded to a factor of 50,000
   // 1,000,000 * 50,000 = 50,000,000,000
-  RangeValues _priceRangeValues = const RangeValues(0, 50000000000);
+  RangeValues _priceRangeValues = const RangeValues(0, 500000000);
   int _matchingPropertiesCount = 0;
 
   // City data for validation and filtering
@@ -84,7 +84,7 @@ class _FiltersPageState extends State<FiltersPage> {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
       final double minPrice = double.tryParse(_minPriceController.text) ?? 0;
-      final double maxPrice = double.tryParse(_maxPriceController.text) ?? 50000000000;
+      final double maxPrice = double.tryParse(_maxPriceController.text) ?? 500000000;
       setState(() {
         _priceRangeValues = RangeValues(minPrice, maxPrice);
       });

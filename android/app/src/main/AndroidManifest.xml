@@ -8,7 +8,7 @@
 
 
     <application
-        android:label="real_estate"
+        android:label="REAL ESTATE"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

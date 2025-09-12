@@ -16,6 +16,7 @@ class User {
   final Timestamp createdAt;
   final Timestamp updatedAt;
   final String? avatarUrl;
+  final bool isAdmin;
 
   User({
     required this.userId,
@@ -31,6 +32,7 @@ class User {
     required this.createdAt,
     required this.updatedAt,
     this.avatarUrl,
+    this.isAdmin = false,
   });
 
   User copyWith({
@@ -47,6 +49,7 @@ class User {
     Timestamp? createdAt,
     Timestamp? updatedAt,
     String? avatarUrl,
+    bool? isAdmin,
   }) {
     return User(
       userId: userId ?? this.userId,
@@ -62,6 +65,7 @@ class User {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      isAdmin: isAdmin ?? this.isAdmin,
     );
   }
 
@@ -82,6 +86,7 @@ class User {
       createdAt: data?['created_at'] as Timestamp,
       updatedAt: data?['updated_at'] as Timestamp,
       avatarUrl: data?['avatar_url'] as String?,
+      isAdmin: data?['isAdmin'] as bool? ?? false,
     );
   }
 
@@ -100,6 +105,7 @@ class User {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'avatar_url': avatarUrl,
+      'isAdmin': isAdmin,
     };
   }
 }

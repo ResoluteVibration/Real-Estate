@@ -22,6 +22,7 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
 
   String? get userId => _currentUser?.userId;
+  bool get isAdmin => _currentUser?.isAdmin ?? false;
 
   static const String _userIdKey = 'userId';
 
@@ -87,7 +88,7 @@ class AuthProvider with ChangeNotifier {
         userId: userDocRef.id,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-        avatarUrl: user.avatarUrl ?? '', // ✅ default empty or asset path
+        avatarUrl: user.avatarUrl ?? '',
       );
       batch.set(userDocRef, newUser.toFirestore());
 
@@ -364,5 +365,81 @@ class AuthProvider with ChangeNotifier {
     _currentAgent = null;
     await _removeUserFromPrefs();
     notifyListeners();
+  }
+
+  // A new method for an admin to make another user an admin.
+  Future<void> makeUserAdmin(String userId) async {
+    if (_currentUser == null || !isAdmin) {
+      throw Exception('Permission denied: Only admins can perform this action.');
+    }
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final userRef = _firestore.collection('users').doc(userId);
+      await userRef.update({'isAdmin': true});
+    } catch (e) {
+      debugPrint('Error promoting user to admin: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // A new method for an admin to revoke another user's admin privileges.
+  Future<void> revokeUserAdmin(String userId) async {
+    if (_currentUser == null || !isAdmin) {
+      throw Exception('Permission denied: Only admins can perform this action.');
+    }
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final userRef = _firestore.collection('users').doc(userId);
+      await userRef.update({'isAdmin': false});
+    } catch (e) {
+      debugPrint('Error revoking admin privileges: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // A new method for an admin to delete a user.
+  Future<void> deleteUser(String userId) async {
+    if (_currentUser == null || !isAdmin) {
+      throw Exception('Permission denied: Only admins can perform this action.');
+    }
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final userRef = _firestore.collection('users').doc(userId);
+      await userRef.delete();
+    } catch (e) {
+      debugPrint('Error deleting user: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // A new method for an admin to edit a user's city.
+  Future<void> adminUpdateUserCity(String userId, String cityId) async {
+    if (_currentUser == null || !isAdmin) {
+      throw Exception('Permission denied: Only admins can perform this action.');
+    }
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final userRef = _firestore.collection('users').doc(userId);
+      await userRef.update({'city_id': cityId});
+    } catch (e) {
+      debugPrint('Error updating user city as admin: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

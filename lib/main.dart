@@ -41,7 +41,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'X STATE',
+      title: 'REAL ESTATE',
 
       // ✅ Light theme only — no dark theme toggle
       theme: ThemeData(

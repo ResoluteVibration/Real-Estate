@@ -1,6 +1,7 @@
 // lib/pages/home/profile_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:real_estate/pages/admin/admin_dashboard_page.dart';
 import 'package:real_estate/providers/auth_provider.dart';
 import 'package:real_estate/pages/home/drawer/favourite_page.dart';
 import 'package:real_estate/pages/home/profile/edit_profile_page.dart';
@@ -222,6 +223,18 @@ class ProfilePage extends StatelessWidget {
               );
             },
           ),
+          if(user?.isAdmin)...{
+            _buildProfileOption(
+              icon: Icons.admin_panel_settings,
+              title: 'Admin Dashboard',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
+                );
+              },
+            ),
+          },
           _buildProfileOption(
             icon: Icons.add_home_work,
             title: 'Post a Property',

@@ -302,8 +302,8 @@ class _HomePageState extends State<HomePage> {
             radius: 16,
             backgroundColor: Theme.of(context).colorScheme.primary,
             backgroundImage: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
-                ? NetworkImage(user.avatarUrl!, scale: 1.0)
-                : AssetImage(user!.avatarUrl!) as ImageProvider,
+                ? AssetImage(user.avatarUrl!)
+                : null,
             key: ValueKey(user?.avatarUrl ?? 'no-avatar'),
             child: (user?.avatarUrl == null || user!.avatarUrl!.isEmpty)
                 ? Icon(
@@ -377,8 +377,8 @@ class _HomePageState extends State<HomePage> {
                   radius: 30,
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   backgroundImage: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
-                      ? NetworkImage(user.avatarUrl!, scale: 1.0)
-                      : AssetImage(user!.avatarUrl!) as ImageProvider,
+                      ? AssetImage(user.avatarUrl!,)
+                      : null,
                   key: ValueKey(user?.avatarUrl ?? 'no-avatar'),
                   child: (user?.avatarUrl == null || user!.avatarUrl!.isEmpty)
                       ? Text(
@@ -413,9 +413,11 @@ class _HomePageState extends State<HomePage> {
                   buildDrawerItem(icon: Icons.edit_note, title: 'My Listings'),
                 ]
               ],
+              if(user?.isAdmin == true)...{
+                buildDrawerItem(icon: Icons.cloud_upload_outlined, title: 'Populate Amenities'),
+              },
               if (!isGuest) ...[
                 const Divider(),
-                //buildDrawerItem(icon: Icons.cloud_upload_outlined, title: 'Populate Amenities'),
                 buildDrawerItem(icon: Icons.logout, title: 'Log Out'),
               ],
             ],
